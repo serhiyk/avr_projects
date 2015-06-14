@@ -5,6 +5,7 @@
 #include "max7219.h"
 #include "Fonts.h"
 #include "cyrillicfont.h"
+#include "months.h"
 #include "UART.h"
 #include "DS3231.h"
 #include "matrix.h"
@@ -309,8 +310,12 @@ void printLCD_date(void)
 	uint8_t date = getDateBCD();
 	uint8_t date_h = date >> 4;
 	date &= 0x0F;
-	uint8_t mon = getMonth();
-	uint8_t shift=get_mon_shift(mon) + 64;
+	uint8_t mon = getMonth() - 1;
+    uint8_t width = _months_width(mon) + 6;
+    if (date_h > 0) {
+        width += 6;
+    }
+	uint8_t shift = 64 + (48 - width)/2; //get_mon_shift(mon) + 64;
 	uint8_t col, col_shift, c, c_len;
 	
 	for(uint8_t i=0; i<8; i++)
@@ -368,37 +373,20 @@ void printLCD_date(void)
 	}
 	shift += 5 + 2;
 	
-	for (uint8_t i=0; i<get_mon_len(mon); i++)
-	{
-		c = get_mon(mon, i);
-		c_len = cyr5width(c);
-		col = shift >> 3;
-		col_shift = shift & 0x07;
-		if(col_shift)
-		{
-			for (uint8_t j=0; j<5; j++)
-			{
-				LCD3_buf[j+2][col] |= cyr5table(c, j) >> col_shift;
+    col = shift / 8;
+    col_shift = shift & 0x07;
+    for (uint8_t i=0; i<4; i++) {
+        for (uint8_t j=0; j<5; j++) {
+            uint8_t tmp = _months_table(mon, j, i);
+            if (col_shift) {
+				LCD3_buf[j+2][col] |= tmp >> col_shift;
+                LCD3_buf[j+2][col+1] = tmp << 8 - col_shift;
+			} else {
+				LCD3_buf[j+2][col] = tmp;
 			}
-			if((col_shift + c_len) > 7)
-			{
-				col++;
-				col_shift = 8 - col_shift;
-				for (uint8_t j=0; j<5; j++)
-				{
-					LCD3_buf[j+2][col] = cyr5table(c, j) << col_shift;
-				}
-			}
-		}
-		else
-		{
-			for (uint8_t j=0; j<5; j++)
-			{
-				LCD3_buf[j+2][col] = cyr5table(c, j);
-			}
-		}
-		shift += c_len + 1;
-	}
+        }
+        col++;
+    }
 }
 
 void printLCD_temp(void)

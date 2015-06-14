@@ -80,7 +80,7 @@ OBJDIR = .
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(TARGET).c matrix.c Fonts.c DS3231.c UART.c cyrillicfont.c
+SRC = $(TARGET).c matrix.c Fonts.c DS3231.c UART.c cyrillicfont.c months.c
 
 
 # List C++ source files here. (C dependencies are automatically generated.)
