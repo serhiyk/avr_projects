@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-void TWI_Init(void);
+void DS3231_init(void);
 
 extern volatile uint8_t RTC_int_flag;
 

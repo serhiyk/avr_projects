@@ -1,11 +1,11 @@
-#ifndef TWI_H_INCLUDED
-#define TWI_H_INCLUDED
+#ifndef TWI_H
+#define TWI_H
 
 #include <stdint.h>
 
-void TWI_Init(void);
+void TWI_init(void);
 void twiMasterSend(uint8_t Addr, uint8_t data);
-uint8_t twiMasterReceive(uint8_t Addr);
-void twitmp(void);
+uint8_t TWI_master_receive(uint8_t dev_addr, uint8_t addr, uint8_t *buf, uint8_t len);
+uint8_t TWI_master_send(uint8_t dev_addr, uint8_t addr, uint8_t *buf, uint8_t len);
 
-#endif
+#endif /* TWI_H */

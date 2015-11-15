@@ -65,8 +65,8 @@ void UART_handler(void)
 
 void setup(void)
 {
-	
-	TWI_Init();
+
+	DS3231_init();
 	InitUART();
 	asm("sei");
 	ClearAlarm();
@@ -94,6 +94,7 @@ int main(void)
 		if(RTC_int_flag)
 		{
 			RTC_int_flag = 0;
+			readRTC();
 			TimeUpdateHandler();
 			ClearAlarm();
 			TransmitByte(ADC >> 8);

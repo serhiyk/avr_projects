@@ -1,6 +1,160 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/delay.h>
 #include "TWI.h"
-#include "UART.h"
 
+// TWI state and address variables
+#define TW_START 0x08
+#define TW_REP_START 0x10
+#define TW_MT_SLA_ACK 0x18
+#define TW_MT_SLA_NACK 0x20
+#define TW_MT_DATA_ACK 0x28
+#define TW_MT_DATA_NACK 0x30
+#define TW_MR_SLA_ACK 0x40
+#define TW_MR_SLA_NACK 0x48
+#define TW_MR_DATA_ACK 0x50
+#define TW_MR_DATA_NACK 0x58
+
+#define TWCR_CMD_MASK 0x0F
+#define TWSR_STATUS_MASK 0xF8
+
+typedef enum {
+    TWI_IDLE = 0,
+    TWI_MASTER_TX = 1,
+    TWI_MASTER_RX = 2
+} twi_state_t;
+
+typedef struct {
+    uint8_t dev_addr;
+    uint8_t addr;
+    uint8_t len;
+    uint8_t *buf;
+    uint8_t index;
+    uint8_t state;
+} twi_descriptor_t;
+
+static volatile twi_descriptor_t twi_descriptor;
+
+inline void TWI_send_byte(uint8_t data)
+{
+    TWDR = data;    //Save Data To The TWDR
+    TWCR = (TWCR & TWCR_CMD_MASK) | (1 << TWINT);   //Begin Send
+}
+
+inline void TWI_send_start(void)
+{
+    TWCR = (TWCR & TWCR_CMD_MASK) | (1 << TWINT) | (1 << TWSTA);    //send start condition
+}
+
+inline void TWI_send_stop(void)
+{
+    //Transmit Stop Condition
+    //Leave With TWEA On For Slave Receiving
+    TWCR = (TWCR & TWCR_CMD_MASK) | (1 << TWINT) | (1 << TWEA) | (1 << TWSTO);
+}
+
+SIGNAL(TWI_vect)
+{
+    uint8_t status = TWSR & TWSR_STATUS_MASK;   //Read Status Bits
+    switch(status) {
+        // Master General
+        case TW_START:  //0x08: Sent Start Condition
+            TWI_send_byte(twi_descriptor.dev_addr);  //Send Device Address
+            break;
+        case TW_REP_START:  //0x10: Sent Repeated Start Condition
+            TWI_send_byte(twi_descriptor.dev_addr | 1);   //Send Device Address
+            break;
+        // Master Transmitter & Receiver status codes
+        case TW_MT_SLA_ACK: //0x18: Slave Address Acknowledged
+            TWI_send_byte(twi_descriptor.addr);
+            break;
+        case TW_MT_DATA_ACK:    //0x28: Data Acknowledged
+            if(twi_descriptor.state == TWI_MASTER_RX)   //ReStart
+            {
+                TWI_send_start();
+            }
+            else if(twi_descriptor.index < twi_descriptor.len)
+            {
+                TWI_send_byte(twi_descriptor.buf[twi_descriptor.index++]);
+            }
+            else
+            {
+                TWI_send_stop();
+                twi_descriptor.state = TWI_IDLE;
+            }
+            break;
+        case TW_MR_DATA_ACK:    //0x50: Data Received, ACK Reply Issued
+            twi_descriptor.buf[twi_descriptor.index++] = TWDR;
+            if(twi_descriptor.index < twi_descriptor.len)
+            {
+                TWCR = (TWCR & TWCR_CMD_MASK) | (1 << TWINT) | (1 << TWEA); //Data Byte Will Be Received, Reply With ACK
+            }
+            else
+            {
+                TWCR = (TWCR & TWCR_CMD_MASK) | (1 << TWINT);   //Data Byte Will Be Received, Reply With NACK (Final Byte In Transfer)
+            }
+            break;
+        case TW_MR_DATA_NACK:   //0x58: Data Received, NACK Reply Issued
+            twi_descriptor.buf[twi_descriptor.index++] = TWDR;   //Store Final Received Data Byte
+            TWI_send_stop();
+            twi_descriptor.state = TWI_IDLE;
+            break;
+        case TW_MR_SLA_NACK:    //0x48: Slave Address Not Acknowledged
+        case TW_MT_SLA_NACK:    //0x20: Slave Address Not Acknowledged
+        case TW_MT_DATA_NACK:   //0x30: Data Not Acknowledged
+            TWI_send_stop();  //Transmit Stop Condition, Enable SLA ACK
+            twi_descriptor.state = TWI_IDLE;    //Set State
+            break;
+        case TW_MR_SLA_ACK: //0x40: Slave Address Acknowledged
+            TWCR = (TWCR & TWCR_CMD_MASK) | (1 << TWINT) | (1 << TWEA); //Data Byte Will Be Received, Reply With ACK
+    }
+}
+
+void TWI_init(void)
+{
+    uint8_t bitrate_div;
+
+    PORTC |= (1<<PC4) | (1<<PC5);   //Set Pull-up Resistors On TWI Bus Pins (SCL, SDA)
+
+    //Set TWI Bitrate
+    //SCL freq = F_CPU/(16+2*TWBR))
+    //For Processors With Additional Bitrate Division (mega128)
+    //SCL freq = F_CPU/(16+2*TWBR*4^TWPS)
+    TWSR &= ~((1 << TWPS0) | (1 << TWPS1) );    //Set TWPS To Zero
+    bitrate_div = ((F_CPU / 1000l) / 400);  //Set twi Bit Rate To 100KHz
+    if(bitrate_div >= 16)
+        bitrate_div = (bitrate_div - 16) / 2;
+    TWBR = bitrate_div;
+    TWCR |= (1 << TWIE) | (1 << TWEA) | (1 << TWEN); //Enable TWI Interrupt, Slave Address ACK, TWI
+}
+
+uint8_t TWI_master_receive(uint8_t dev_addr, uint8_t addr, uint8_t *buf, uint8_t len)
+{
+    if (twi_descriptor.state != TWI_IDLE)
+    {
+        return -1;
+    }
+    twi_descriptor.dev_addr = dev_addr;
+    twi_descriptor.addr = addr;
+    twi_descriptor.buf = buf;
+    twi_descriptor.len = len - 1;
+    twi_descriptor.index = 0;
+    twi_descriptor.state = TWI_MASTER_RX;
+    TWI_send_start();
+    return 0;
+}
+
+uint8_t TWI_master_send(uint8_t dev_addr, uint8_t addr, uint8_t *buf, uint8_t len)
+{
+    if (twi_descriptor.state != TWI_IDLE)
+    {
+        return -1;
+    }
+    twi_descriptor.dev_addr = dev_addr;
+    twi_descriptor.addr = addr;
+    twi_descriptor.buf = buf;
+    twi_descriptor.len = len;
+    twi_descriptor.index = 0;
+    twi_descriptor.state = TWI_MASTER_TX;
+    TWI_send_start();
+    return 0;
+}
