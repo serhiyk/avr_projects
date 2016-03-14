@@ -1,6 +1,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h> 
+#include <avr/pgmspace.h>
 #include <util/delay.h>
 #include "max7219.h"
 #include "Fonts.h"
@@ -14,7 +14,7 @@
 #define max7219PerRow 6
 #define max7219Rows 8
 
-const uint8_t BitReverseTable256[] PROGMEM = 
+const uint8_t BitReverseTable256[] PROGMEM =
 {
 	0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,
 	0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8, 0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8,
@@ -43,19 +43,19 @@ const uint8_t wed[] PROGMEM = "Середа";
 const uint8_t thu[] PROGMEM = "Четвер";
 const uint8_t fri[] PROGMEM = "П'ятниця";
 const uint8_t sat[] PROGMEM = "Субота";
-const uint8_t *dow_str[] = 
+const uint8_t *dow_str[] =
 {
 	emp, sun, mon, tue, wed, thu, fri, sat
 };
-#define get_dow(d,n) pgm_read_byte(&dow_str[d][n])
+#define get_dow_str(d,n) pgm_read_byte(&dow_str[d][n])
 
-const uint8_t dow_len[] PROGMEM = 
+const uint8_t dow_len[] PROGMEM =
 {
 	0, 6, 9, 8, 6, 6, 8, 6
 };
 #define get_dow_len(d) pgm_read_byte(&dow_len[d])
 
-const uint8_t dow_shift[] PROGMEM = 
+const uint8_t dow_shift[] PROGMEM =
 {
 	0, 8, 0, 4, 7, 8, 2, 6
 };
@@ -73,19 +73,19 @@ const uint8_t sep[] PROGMEM = "вересня";
 const uint8_t oct[] PROGMEM = "жовтня";
 const uint8_t nov[] PROGMEM = "листопада";
 const uint8_t dec[] PROGMEM = "грудня";
-const uint8_t *mon_str[] = 
+const uint8_t *mon_str[] =
 {
 	emp, jan, feb, mar, apr, may, jun, jul, aug, sep, oct, nov, dec
 };
 #define get_mon(d,n) pgm_read_byte(&mon_str[d][n])
 
-const uint8_t mon_len[] PROGMEM = 
+const uint8_t mon_len[] PROGMEM =
 {
 	0, 5, 6, 7, 6, 6, 6, 5, 6, 7, 6, 9, 6
 };
 #define get_mon_len(d) pgm_read_byte(&mon_len[d])
 
-const uint8_t mon_shift[] PROGMEM = 
+const uint8_t mon_shift[] PROGMEM =
 {
 	0, 0, 0, 0, 0, 0, 6, 8, 6, 0, 0, 0, 0
 };
@@ -96,7 +96,7 @@ const uint8_t mon_shift[] PROGMEM =
 static uint8_t LCD1_buf[max7219Rows*2][max7219PerRow];
 static uint8_t LCD2_buf[max7219Rows][max7219PerRow];
 static uint8_t LCD3_buf[max7219Rows][32];
-static uint8_t *LCD_buf[LCD_BUF_ROWS] = 
+static uint8_t *LCD_buf[LCD_BUF_ROWS] =
 {
 	LCD1_buf[0], LCD1_buf[1], LCD1_buf[2], LCD1_buf[3], LCD1_buf[4], LCD1_buf[5], LCD1_buf[6], LCD1_buf[7],
 	LCD1_buf[8], LCD1_buf[9], LCD1_buf[10], LCD1_buf[11], LCD1_buf[12], LCD1_buf[13], LCD1_buf[14], LCD1_buf[15],
@@ -156,12 +156,12 @@ void Matrix_Init(void)
 	printLCD_date();
 	printLCD_temp();
 	printLCD_ptn();
-	sendAll(max7219_reg_scanLimit, 0x07);      
+	sendAll(max7219_reg_scanLimit, 0x07);
 	sendAll(max7219_reg_decodeMode, 0x00);  // using an led matrix (not digits)
 	sendAll(max7219_reg_shutdown, 0x01);    // not in shutdown mode
 	sendAll(max7219_reg_displayTest, 0x00); // no display test
 	sendAll(max7219_reg_intensity, 0x0f & 0x01);    // the first 0x0f is the value you can set range: 0x00 to 0x0f
-	
+
 	TCCR0A |= 1 << WGM01;
 	OCR0A = 0xFF;
 	TCCR0B |= (1 << CS02)|(1 << CS00);
@@ -191,7 +191,7 @@ void TransmitByteSPI(uint8_t data)
 {
 	uint8_t tmphead;
 
-	tmphead = SPI_buf_Head + 1;	
+	tmphead = SPI_buf_Head + 1;
 	while(tmphead == SPI_buf_Tail);
 	SPI_buf[tmphead] = data;
 	SPI_buf_Head = tmphead;
@@ -199,10 +199,10 @@ void TransmitByteSPI(uint8_t data)
 
 void printLCD_Clock1(void)
 {
-	uint8_t h = getHourBCD();
+	uint8_t h = get_hour_bcd();
 	uint8_t h_h = h >> 4;
 	h &= 0x0F;
-	uint8_t m = getMinuteBCD();
+	uint8_t m = get_minute_bcd();
 	uint8_t m_h = m >> 4;
 	m &= 0x0F;
 
@@ -219,13 +219,13 @@ void printLCD_Clock1(void)
 
 void printLCD_Clock2(void)
 {
-	uint8_t h = getHourBCD();
+	uint8_t h = get_hour_bcd();
 	uint8_t h_h = h >> 4;
 	h &= 0x0F;
-	uint8_t m = getMinuteBCD();
+	uint8_t m = get_minute_bcd();
 	uint8_t m_h = m >> 4;
 	m &= 0x0F;
-	uint8_t s = getSecondBCD();
+	uint8_t s = get_second_bcd();
 	uint8_t s_h = s >> 4;
 	s &= 0x0F;
 
@@ -243,7 +243,7 @@ void printLCD_Clock2(void)
 			LCD2_buf[i][0] = dDigital7table(h_h, i) >> 1;
 		}
 	}
-	
+
 	for (uint8_t i=0; i<7; i++)
 	{
 		LCD2_buf[i][1] = dDigital7table(h, i);
@@ -252,7 +252,7 @@ void printLCD_Clock2(void)
 		LCD2_buf[i][4] = dDigital7table(s_h, i) >> 3;
 		LCD2_buf[i][5] = dDigital7table(s, i) >> 2;
 	}
-	
+
 	if(s & 0x01)
 	{
 		LCD2_buf[1][1] |= 0x01;
@@ -264,17 +264,17 @@ void printLCD_Clock2(void)
 
 void printLCD_DoW(void)
 {
-	uint8_t dow = getDoW();
+	uint8_t dow = get_dow();
 	uint8_t shift=get_dow_shift(dow);
 	uint8_t col, col_shift, c, c_len;
-	
+
 	for(uint8_t i=0; i<8; i++)
 		for(uint8_t j=0; j<6; j++)
 			LCD3_buf[i][j] = 0;
-	
+
 	for(uint8_t i=0; i<get_dow_len(dow); i++)
 	{
-		c = get_dow(dow, i);
+		c = get_dow_str(dow, i);
 		c_len = cyr7width(c);
 		col = shift >> 3;
 		col_shift = shift & 0x07;
@@ -307,21 +307,21 @@ void printLCD_DoW(void)
 
 void printLCD_date(void)
 {
-	uint8_t date = getDateBCD();
+	uint8_t date = get_date_bcd();
 	uint8_t date_h = date >> 4;
 	date &= 0x0F;
-	uint8_t mon = getMonth() - 1;
+	uint8_t mon = get_month() - 1;
     uint8_t width = _months_width(mon) + 6;
     if (date_h > 0) {
         width += 6;
     }
 	uint8_t shift = 64 + (48 - width)/2; //get_mon_shift(mon) + 64;
 	uint8_t col, col_shift, c, c_len;
-	
+
 	for(uint8_t i=0; i<8; i++)
 		for(uint8_t j=8; j<14; j++)
 			LCD3_buf[i][j] = 0;
-	
+
 	if(date_h)
 	{
 		col = shift >> 3;
@@ -345,7 +345,7 @@ void printLCD_date(void)
 	{
 		shift += 3;
 	}
-	
+
 	col = shift >> 3;
 	col_shift = shift & 0x07;
 	if(col_shift)
@@ -372,7 +372,7 @@ void printLCD_date(void)
 		}
 	}
 	shift += 5 + 2;
-	
+
     col = shift / 8;
     col_shift = shift & 0x07;
     for (uint8_t i=0; i<4; i++) {
@@ -391,20 +391,20 @@ void printLCD_date(void)
 
 void printLCD_temp(void)
 {
-	int8_t temp = getTemperature();
+	int8_t temp = get_temperature();
 	int8_t temp_h=temp / 10;
 	temp %= 10;
-	
+
 	for (uint8_t j=0; j<7; j++)
 	{
 		LCD3_buf[j][18] = dDigital7table(temp_h, j) | (dDigital7table(temp, j) >> 6);
 	}
-	
+
 	for (uint8_t j=0; j<7; j++)
 	{
 		LCD3_buf[j][19] = (dDigital7table(temp, j) << 2);
 	}
-	
+
 	LCD3_buf[0][19] |= 0x06;
 	LCD3_buf[1][19] |= 0x09;
 	LCD3_buf[2][19] |= 0x09;
@@ -414,7 +414,7 @@ void printLCD_temp(void)
 void printLCD_Illumination(void)
 {
 	uint16_t illumination = ADC;
-	
+
 	if(illumination > 999)
 	{
 		for (uint8_t j=0; j<7; j++)
@@ -456,7 +456,7 @@ void printLCD_ptn(void)
 	static uint8_t *str2 = "     ";
 	uint8_t shift=10;
 	uint8_t col, col_shift, c, c_len;
-	
+
 	for (uint8_t i=0; i<5; i++)
 	{
 		c = str1[i];
@@ -488,7 +488,7 @@ void printLCD_ptn(void)
 		}
 		shift += c_len + 2;
 	}
-	
+
 	shift = 8;
 	for (uint8_t i=0; i<5; i++)
 	{
@@ -528,7 +528,7 @@ void ClearLCDBuffer(void)
 	for(uint8_t i=0; i<24; i++)
 		for(uint8_t j=0; j<6; j++)
 			LCD_buf[i][j] = 0;
-			
+
 	for(uint8_t i=24; i<32; i++)
 		for(uint8_t j=0; j<32; j++)
 			LCD_buf[i][j] = 0;
@@ -607,7 +607,7 @@ SIGNAL(SPI_STC_vect)
 	if(SPI_buf_Head != SPI_buf_Tail)	//If Transmit Buffer Not Free, Transmit Byte
 	{
 		SPI_flag = 1;
-		tmptail = SPI_buf_Tail + 1; 
+		tmptail = SPI_buf_Tail + 1;
 		SPI_buf_Tail = tmptail;
 		SPI_buf_Counter++;
 		SPDR = SPI_buf[tmptail];
@@ -616,7 +616,7 @@ SIGNAL(SPI_STC_vect)
 	{
 		SPI_flag = 0;
 		SPI_buf_Counter = 0;
-		
+
 	}
 }
 
@@ -634,13 +634,13 @@ SIGNAL(TIMER0_COMPA_vect)
 					LCD_state = LCD_STATE_UP;
 				LCD_update = 1;
 				break;
-				
+
 			case LCD_STATE_GOTO_DOWN:
 				if(++LCD_buf_Row_Shift == 16)
 					LCD_state = LCD_STATE_DOWN;
 				LCD_update = 1;
 				break;
-			
+
 			case LCD_STATE_GOTO_RIGHT:
 				if((++LCD_buf_Col_Shift & 0x3F) == 0)
 					LCD_state = LCD_STATE_RIGHT;
@@ -688,36 +688,36 @@ void TimeUpdateHandler(void)
 			LCD_update = 1;
 		}
 	}
-	
+
 	if(LCD_off_timer)
 	{
 		if(LCD_state & (LCD_STATE_GOTO_UP | LCD_STATE_UP | LCD_STATE_GOTO_DOWN))
 		{
-			if(getSecondBCD() == 0)
+			if(get_second_bcd() == 0)
 			{
 				printLCD_Clock1();
 			}
 		}
-		
+
 		if(LCD_state != LCD_STATE_GOTO_UP)
 		{
 			printLCD_Clock2();
 			printLCD_Illumination();
-			if(getSecondBCD() == 0)
+			if(get_second_bcd() == 0)
 			{
-				if((getHour() == 0) && (getMinuteBCD() == 0))
+				if((get_hour() == 0) && (get_minute_bcd() == 0))
 				{
 					printLCD_DoW();
 					printLCD_date();
 				}
 			}
-			else if(getSecondBCD() == 0x30)
+			else if(get_second_bcd() == 0x30)
 			{
 				printLCD_temp();
 			}
 		}
 		LCD_update = 1;
-	
+
 		switch(LCD_state)
 		{
 			case LCD_STATE_RIGHT:
