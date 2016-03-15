@@ -8,6 +8,7 @@
 #include "months.h"
 #include "UART.h"
 #include "DS3231.h"
+#include "SPI.h"
 #include "matrix.h"
 
 #define max7219InUse 12
@@ -125,23 +126,16 @@ static volatile uint8_t LCD_state=LCD_STATE_UP;
 
 static uint8_t LCD_off_timer=0xFF;
 
+static uint8_t spi_buf[36];
+
 void printLCD_Clock1(void);
 void printLCD_Clock2(void);
 void printLCD_DoW(void);
 void printLCD_date(void);
 void printLCD_temp(void);
 void printLCD_ptn(void);
-void TransmitByteSPI(uint8_t data);
-void StartSPI(void);
 void sendAll(uint8_t reg, uint8_t data);
-
-void SPI_MasterInit(void)
-{
-	/* Set MOSI and SCK output, all others input */
-	DDRB |= (1<<PB3)|(1<<PB5)|(1<<PB2);
-	/* Enable SPI, Master, set clock rate fck/16 */
-	SPCR = (1<<SPIE)|(1<<SPE)|(1<<MSTR)|(1<<SPR0);
-}
+void max7219_cs(void);
 
 void Matrix_Init(void)
 {
@@ -149,7 +143,7 @@ void Matrix_Init(void)
 	SPI_buf_Tail = 0;
 	SPI_buf_Counter = 0;
 	SPI_flag = 0;
-	SPI_MasterInit();
+	spi_master_init();
 	printLCD_Clock1();
 	printLCD_Clock2();
 	printLCD_DoW();
@@ -170,31 +164,14 @@ void Matrix_Init(void)
 
 void sendAll(uint8_t reg, uint8_t data)
 {
+	uint8_t *buf=spi_buf;
 	for(uint8_t i=0; i<max7219InUse; i++)
 	{
-		TransmitByteSPI(reg);
-		TransmitByteSPI(data);
+		*buf++ = reg;
+		*buf++ = data;
 	}
-	StartSPI();
-}
-
-void StartSPI(void)
-{
-	if(!SPI_flag)
-	{
-		SPDR = 0;
-		SPI_flag = 1;
-	}
-}
-
-void TransmitByteSPI(uint8_t data)
-{
-	uint8_t tmphead;
-
-	tmphead = SPI_buf_Head + 1;
-	while(tmphead == SPI_buf_Tail);
-	SPI_buf[tmphead] = data;
-	SPI_buf_Head = tmphead;
+	spi_master_send(spi_buf, max7219InUse*2, max7219_cs);
+	while (!spi_ready());
 }
 
 void printLCD_Clock1(void)
@@ -534,90 +511,64 @@ void ClearLCDBuffer(void)
 			LCD_buf[i][j] = 0;
 }
 
-void LoadLCDBuffer(void)
+void matrix_load_row(uint8_t r)
 {
 	uint8_t tmp, col, row;
 	uint8_t ColShift = LCD_buf_Col_Shift & 7;
 	uint8_t ColMatrixShift = LCD_buf_Col_Shift >> 3;
+	uint8_t *buf=spi_buf;
 
-	for(uint8_t r=0; r<max7219Rows; r++)
+
+	for(uint8_t m=0; m<max7219InUse; m++)
 	{
-		for(uint8_t m=0; m<max7219InUse; m++)
-		{
-			TransmitByteSPI(r + 1);
+		*buf++ = r + 1;
 
-			if(m < max7219PerRow)
-			{
-				row = 15 - r + LCD_buf_Row_Shift;
-				if(row < 24)
-					tmp = LCD_buf[row][m];
-				else
-				{
-					col = (m + ColMatrixShift) & 31;
-					tmp = LCD_buf[row][col];
-					if(ColShift)
-					{
-						tmp <<= ColShift;
-						col++;
-						col &= 31;
-						tmp |= LCD_buf[row][col] >> (8 - ColShift);
-					}
-				}
-				TransmitByteSPI(reverse(tmp));
-			}
+		if(m < max7219PerRow)
+		{
+			row = 15 - r + LCD_buf_Row_Shift;
+			if(row < 24)
+				tmp = LCD_buf[row][m];
 			else
 			{
-				row = r + LCD_buf_Row_Shift;
-				col = 11 - m;
-				if(row < 24)
-					tmp = LCD_buf[row][col];
-				else
+				col = (m + ColMatrixShift) & 31;
+				tmp = LCD_buf[row][col];
+				if(ColShift)
 				{
-					col += ColMatrixShift;
-					tmp = LCD_buf[row][col];
-					if (ColShift)
-					{
-						tmp <<= ColShift;
-						col++;
-						tmp |= LCD_buf[row][col] >> (8 - ColShift);
-					}
+					tmp <<= ColShift;
+					col++;
+					col &= 31;
+					tmp |= LCD_buf[row][col] >> (8 - ColShift);
 				}
-				TransmitByteSPI(tmp);
 			}
+			*buf++ = reverse(tmp);
+		}
+		else
+		{
+			row = r + LCD_buf_Row_Shift;
+			col = 11 - m;
+			if(row < 24)
+				tmp = LCD_buf[row][col];
+			else
+			{
+				col += ColMatrixShift;
+				tmp = LCD_buf[row][col];
+				if (ColShift)
+				{
+					tmp <<= ColShift;
+					col++;
+					tmp |= LCD_buf[row][col] >> (8 - ColShift);
+				}
+			}
+			*buf++ = tmp;
 		}
 	}
-	StartSPI();
+	spi_master_send(spi_buf, max7219InUse*2, max7219_cs);
 }
 
 inline void max7219_cs(void)
 {
 	PORTB &= ~(1<<PB2);
 	PORTB |= 1<<PB2;
-}
-
-SIGNAL(SPI_STC_vect)
-{
-	uint8_t tmptail;
-
-	if(SPI_buf_Counter == max7219InUse*2)
-	{
-		SPI_buf_Counter = 0;
-		max7219_cs();
-	}
-	if(SPI_buf_Head != SPI_buf_Tail)	//If Transmit Buffer Not Free, Transmit Byte
-	{
-		SPI_flag = 1;
-		tmptail = SPI_buf_Tail + 1;
-		SPI_buf_Tail = tmptail;
-		SPI_buf_Counter++;
-		SPDR = SPI_buf[tmptail];
-	}
-	else	//If Transmit Buffer Free
-	{
-		SPI_flag = 0;
-		SPI_buf_Counter = 0;
-
-	}
 }
 
 static volatile uint8_t scroll_counter=0;
@@ -652,10 +603,19 @@ SIGNAL(TIMER0_COMPA_vect)
 
 void MatrixUpdateHandler(void)
 {
+	static uint8_t row=8;
 	if(LCD_update)
 	{
 		LCD_update = 0;
-		LoadLCDBuffer();
+		row = 0;
+	}
+	if (row < 8)
+	{
+		if (spi_ready())
+		{
+			matrix_load_row(row);
+			row++;
+		}
 	}
 }
 
