@@ -1,10 +1,10 @@
 #ifndef UART_H
-#define	UART_H
+#define UART_H
 
-void InitUART(void);
-void TransmitByte(uint8_t data);
-uint8_t ReceiveByte(void);
-uint8_t CheckUARTReceiver(void);
-void TransmitHex(uint8_t hexNumber);
+void uart_init(void);
+void uart_send_byte(uint8_t data);
+uint8_t uart_get_byte(void);
+uint8_t uart_check_receiver(void);
+void uart_send_hex(uint8_t hexNumber);
 
-#endif	/* UART_H */
+#endif  /* UART_H */

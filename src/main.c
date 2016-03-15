@@ -12,9 +12,9 @@
 SIGNAL(INT1_vect)
 {
     /*if(PIND & (1 << PD3))
-        TransmitByte('1');
+        uart_send_byte('1');
     else
-        TransmitByte('0');*/
+        uart_send_byte('0');*/
     //ADCSRA |= 1 << ADSC;
 }
 
@@ -58,16 +58,16 @@ void UART_handler(void)
     uint8_t tmp;
 
     do {
-        tmp = ReceiveByte();
+        tmp = uart_get_byte();
         bootloader_handler(tmp);
-    } while (CheckUARTReceiver());
+    } while (uart_check_receiver());
 }
 
 void setup(void)
 {
 
     ds3231_init();
-    InitUART();
+    uart_init();
     asm("sei");
     //_delay_ms(5);
     Matrix_Init();
@@ -91,9 +91,9 @@ int main(void)
         ds3231_handler(TimeUpdateHandler);
         MatrixUpdateHandler();
         //_delay_ms(1000);
-        //TransmitByte('a');
+        //uart_send_byte('a');
         //PORTB ^= 1 << PB5;
-        if (CheckUARTReceiver()) {
+        if (uart_check_receiver()) {
             UART_handler();
         }
     }
