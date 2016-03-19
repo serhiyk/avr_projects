@@ -1,4 +1,4 @@
-#include "matrix.h"
+#include "display.h"
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #define F_CPU 16000000UL
@@ -70,7 +70,7 @@ void setup(void)
     uart_init();
     asm("sei");
     //_delay_ms(5);
-    Matrix_Init();
+    display_init();
 
     //PORTD |= 1 << PD3;
     EICRA |= 1 << ISC10;    // Any logical change on INT1 generates an interrupt request
@@ -88,8 +88,8 @@ int main(void)
   //set_time(0,1,18,1,22,6,14);
     while(1)
     {
-        ds3231_handler(TimeUpdateHandler);
-        MatrixUpdateHandler();
+        ds3231_handler(time_update_handler);
+        display_handler();
         //_delay_ms(1000);
         //uart_send_byte('a');
         //PORTB ^= 1 << PB5;

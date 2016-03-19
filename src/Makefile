@@ -80,7 +80,7 @@ OBJDIR = .
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(TARGET).c matrix.c Fonts.c DS3231.c UART.c TWI.c SPI.c cyrillicfont.c months.c
+SRC = $(TARGET).c display.c fonts.c DS3231.c UART.c TWI.c SPI.c cyrillicfont.c text.c
 
 
 # List C++ source files here. (C dependencies are automatically generated.)
@@ -156,6 +156,7 @@ CFLAGS += -fpack-struct
 CFLAGS += -fshort-enums
 CFLAGS += -Wall
 CFLAGS += -Wstrict-prototypes
+CFLAGS += -Wno-missing-braces
 #CFLAGS += -mshort-calls
 #CFLAGS += -fno-unit-at-a-time
 #CFLAGS += -Wundef

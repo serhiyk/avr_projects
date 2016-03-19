@@ -27,7 +27,7 @@
 
 static uint8_t ds3231_buf[19];
 
-volatile uint8_t rtc_int_flag=0;
+volatile uint8_t rtc_int_flag=1;
 volatile uint8_t clear_alarm_flag=0;
 volatile uint8_t data_ready_flag=0;
 

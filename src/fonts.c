@@ -1,10 +1,10 @@
-#include <avr/pgmspace.h> 
-#include "Fonts.h"
+#include <avr/pgmspace.h>
+#include "fonts.h"
 
 #define ASCII_BEGIN    0x20
 #define ASCII_END      0x7D
 
-const uint8_t TripleDotDigital15table[][30] PROGMEM = 
+const uint8_t TripleDotDigital15table[][30] PROGMEM =
 {
   /* character 0x30 ('0'): (width=11) */
 0x7f,0xc0,
@@ -39,7 +39,7 @@ const uint8_t TripleDotDigital15table[][30] PROGMEM =
 0xff,0xe0,
 0xff,0xe0,
 0xff,0xe0,
-  
+
   /* character 0x32 ('2'): (width=11) */
 0x7f,0xc0,
 0xff,0xe0,
@@ -56,7 +56,7 @@ const uint8_t TripleDotDigital15table[][30] PROGMEM =
 0xff,0xe0,
 0xff,0xe0,
 0xff,0xe0,
-  
+
   /* character 0x33 ('3'): (width=11) */
 0x7f,0xc0,
 0xff,0xe0,
@@ -178,7 +178,7 @@ const uint8_t TripleDotDigital15table[][30] PROGMEM =
 
 };
 
-const uint8_t DotDigital7table[][7] PROGMEM = 
+const uint8_t DotDigital7table[][7] PROGMEM =
 {
   /* character 0x30 ('0'): (width=5) */
 0x70,
@@ -197,7 +197,7 @@ const uint8_t DotDigital7table[][7] PROGMEM =
 0x20,
 0x20,
 0xf8,
-  
+
   /* character 0x32 ('2'): (width=5) */
 0x70,
 0x88,
@@ -206,7 +206,7 @@ const uint8_t DotDigital7table[][7] PROGMEM =
 0x40,
 0x80,
 0xf8,
-  
+
   /* character 0x33 ('3'): (width=5) */
 0x70,
 0x88,
