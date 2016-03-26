@@ -117,30 +117,25 @@ uint8_t get_year(void)
 
 void set_time(uint8_t second, uint8_t minute, uint8_t hour, uint8_t dow, uint8_t date, uint8_t month, uint8_t year)
 {
-    // while(TWIstate);
-    // TWIstate = TWI_MASTER_TX;
-
-    // ds3231_buf[0] = dec_to_bcd(Second);
-    // ds3231_buf[1] = dec_to_bcd(Minute);
-    // ds3231_buf[2] = dec_to_bcd(Hour);// & 0b10111111;
-    // ds3231_buf[3] = dec_to_bcd(DoW);
-    // ds3231_buf[4] = dec_to_bcd(Date);
-    // ds3231_buf[5] = dec_to_bcd(Month);
-    // ds3231_buf[6] = dec_to_bcd(Year);
-    // ds3231_buf[7] = 0x80;
-    // ds3231_buf[8] = 0x80;
-    // ds3231_buf[9] = 0x80;
-    // ds3231_buf[10] = 0x80;
-    // ds3231_buf[11] = 0x80;
-    // ds3231_buf[12] = 0x80;
-    // ds3231_buf[13] = 0x80;
-    // ds3231_buf[14] = 0x05; // Alarm 1 Interrupt Enable
-    // ds3231_buf[15] = 0x00;
-
-    // TWIaddr = 0;
-    // ds3231_bufIndex = 0;
-    // ds3231_bufLength = 16;
-    // twiSendStart(); //Send Start Condition
+    while (!twi_ready());
+    ds3231_buf[0] = DS3231_REG_SECONDS;
+    ds3231_buf[1] = dec_to_bcd(second);
+    ds3231_buf[2] = dec_to_bcd(minute);
+    ds3231_buf[3] = dec_to_bcd(hour);// & 0b10111111;
+    ds3231_buf[4] = dec_to_bcd(dow);
+    ds3231_buf[5] = dec_to_bcd(date);
+    ds3231_buf[6] = dec_to_bcd(month);
+    ds3231_buf[7] = dec_to_bcd(year);
+    ds3231_buf[8] = 0x80;
+    ds3231_buf[9] = 0x80;
+    ds3231_buf[10] = 0x80;
+    ds3231_buf[11] = 0x80;
+    ds3231_buf[12] = 0x80;
+    ds3231_buf[13] = 0x80;
+    ds3231_buf[14] = 0x80;
+    ds3231_buf[15] = 0x05; // Alarm 1 Interrupt Enable
+    ds3231_buf[16] = 0x00;
+    twi_master_send(DS3231_ADDRESS, ds3231_buf, 17, 0);
 }
 
 int8_t get_temperature(void)

@@ -5,9 +5,12 @@
 #include <util/delay.h>
 #include "DS3231.h"
 #include "UART.h"
+#include "timer.h"
 #include <stdint.h>
 
 #define BOOTLOADER_START_ADDRESS 0x3800
+
+#define MOTION_TIMER_ID 1
 
 SIGNAL(INT1_vect)
 {
@@ -68,6 +71,7 @@ void setup(void)
 
     ds3231_init();
     uart_init();
+    timer_init();
     asm("sei");
     //_delay_ms(5);
     display_init();
@@ -81,11 +85,56 @@ void setup(void)
     asm("sei");
 }
 
+void motion_handler(void)
+{
+    static uint8_t off_timer=0;
+    if(PIND & (1 << PD3))
+    {
+        if(off_timer == 0)
+        {
+            display_activate();
+            off_timer = 2;
+        }
+        else if(off_timer != 0xFF)
+        {
+            off_timer++;
+        }
+    }
+    else if(off_timer)
+    {
+        off_timer--;
+        if(off_timer == 0)
+        {
+            display_deactivate();
+        }
+    }
+}
+
+void t_handler(void)
+{
+    uart_send_byte((get_date_bcd()>>4)+0x30);
+    uart_send_byte((get_date_bcd()&0x0F)+0x30);
+    uart_send_byte('-');
+    uart_send_byte((get_month()&0x0F)+0x30);
+    uart_send_byte(' ');
+    uart_send_byte((get_hour_bcd()>>4)+0x30);
+    uart_send_byte((get_hour_bcd()&0x0F)+0x30);
+    uart_send_byte(':');
+    uart_send_byte((get_minute_bcd()>>4)+0x30);
+    uart_send_byte((get_minute_bcd()&0x0F)+0x30);
+    uart_send_byte(':');
+    uart_send_byte((get_second_bcd()>>4)+0x30);
+    uart_send_byte((get_second_bcd()&0x0F)+0x30);
+    uart_send_byte('\n');
+    uart_send_byte('\r');
+}
+
 int main(void)
 {
     setup();
-
-  //set_time(0,1,18,1,22,6,14);
+    uart_send_byte('S');
+    timer_register(MOTION_TIMER_ID, 10, motion_handler);
+    // set_time(0,11,21,3,22,3,16);
     while(1)
     {
         ds3231_handler(time_update_handler);
@@ -96,5 +145,6 @@ int main(void)
         if (uart_check_receiver()) {
             UART_handler();
         }
+        timer_handler();
     }
 }

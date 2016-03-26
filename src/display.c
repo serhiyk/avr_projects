@@ -10,7 +10,10 @@
 #include "UART.h"
 #include "DS3231.h"
 #include "SPI.h"
+#include "timer.h"
 #include "display.h"
+
+#define DISPLAY_TIMER_ID 0
 
 #define MAX7219_NUMBER 12
 #define MAX7219_PER_ROW 6
@@ -19,8 +22,6 @@
 #define DISPLAY_VIRTUAL_ROWS 32
 #define DISPLAY_ROWS 16
 #define DISPLAY_BOTTOM_2_SHIFT 64
-
-typedef uint8_t array_of_8_uint8_t[8];
 
 const uint8_t BitReverseTable256[] PROGMEM =
 {
@@ -54,20 +55,16 @@ static uint8_t *display_buf[DISPLAY_VIRTUAL_ROWS] =
     display_bottom_buf[0], display_bottom_buf[1], display_bottom_buf[2], display_bottom_buf[3], display_bottom_buf[4], display_bottom_buf[5], display_bottom_buf[6], display_bottom_buf[7]
 };
 
-static volatile uint8_t display_row_shift=0;
+static volatile uint8_t display_row_shift=16;
 static volatile uint8_t display_col_shift=0;
 
 static volatile uint8_t display_update_flag;
 
-#define DISPLAY_STATE_UP (1<<0)
-#define DISPLAY_STATE_GOTO_UP (1<<1)
-#define DISPLAY_STATE_DOWN (1<<2)
-#define DISPLAY_STATE_GOTO_DOWN (1<<3)
-#define DISPLAY_STATE_GOTO_RIGHT (1<<4)
-#define DISPLAY_STATE_RIGHT (1<<5)
-static volatile uint8_t display_state=DISPLAY_STATE_UP;
-
-static uint8_t DISPLAY_off_timer=0xFF;
+#define DISPLAY_STATE_IDLE 0
+#define DISPLAY_STATE_ACTIVATING 1
+#define DISPLAY_STATE_ACTIVE 2
+#define DISPLAY_STATE_INACTIVE 3
+static volatile uint8_t display_state=DISPLAY_STATE_IDLE;
 
 static uint8_t spi_buf[36];
 
@@ -78,28 +75,28 @@ void print_bottom_date(void);
 void print_bottom_temperature(void);
 void max7219_send_all(uint8_t reg, uint8_t data);
 void max7219_cs_cb(void);
+void display_wait_down(void);
+void display_wait_right(void);
+void display_scroll_up(void);
+void display_scroll_down(void);
+void display_scroll_right(void);
+void display_update(void);
+void display_clear_buf(void);
 
 void display_init(void)
 {
     spi_master_init();
+    display_clear_buf();
     print_full_time();
-    print_top_time();
-    print_bottom_dow();
-    print_bottom_date();
-    print_bottom_temperature();
     max7219_send_all(max7219_reg_scanLimit, 0x07);
     max7219_send_all(max7219_reg_decodeMode, 0x00);  // using an led matrix (not digits)
     max7219_send_all(max7219_reg_shutdown, 0x01);    // not in shutdown mode
     max7219_send_all(max7219_reg_displayTest, 0x00); // no display test
     max7219_send_all(max7219_reg_intensity, 0x0f & 0x01);    // the first 0x0f is the value you can set range: 0x00 to 0x0f
-
-    TCCR0A |= 1 << WGM01;
-    OCR0A = 0xFF;
-    TCCR0B |= (1 << CS02)|(1 << CS00);
-    TIMSK0 |= 1 << OCIE0A;
+    display_update();
 }
 
-void update_display(void)
+void display_update(void)
 {
     display_update_flag = 8;
 }
@@ -371,7 +368,7 @@ void print_bottom_illumination(void)
     }
 }
 
-void clear_display_buf(void)
+void display_clear_buf(void)
 {
     for(uint8_t i=0; i<24; i++)
         for(uint8_t j=0; j<6; j++)
@@ -382,7 +379,7 @@ void clear_display_buf(void)
             display_buf[i][j] = 0;
 }
 
-void matrix_load_row(uint8_t r)
+void display_load_row(uint8_t r)
 {
     uint8_t tmp, col, row;
     uint8_t col_shift = display_col_shift & 7;
@@ -436,34 +433,54 @@ void matrix_load_row(uint8_t r)
     spi_master_send(spi_buf, MAX7219_NUMBER*2, max7219_cs_cb);
 }
 
-static volatile uint8_t scroll_counter=0;
-
-SIGNAL(TIMER0_COMPA_vect)
+void display_wait_right(void)
 {
-    scroll_counter++;
-    if((scroll_counter & 0x07) == 0)
+    timer_register(DISPLAY_TIMER_ID, 1, display_scroll_right);
+}
+
+void display_wait_down(void)
+{
+    timer_register(DISPLAY_TIMER_ID, 1, display_scroll_down);
+}
+
+void display_scroll_up(void)
+{
+    if (display_row_shift > 0)
     {
-        switch(display_state)
-        {
-            case DISPLAY_STATE_GOTO_UP:
-                if(--display_row_shift == 0)
-                    display_state = DISPLAY_STATE_UP;
-                update_display();
-                break;
-
-            case DISPLAY_STATE_GOTO_DOWN:
-                if(++display_row_shift == 16)
-                    display_state = DISPLAY_STATE_DOWN;
-                update_display();
-                break;
-
-            case DISPLAY_STATE_GOTO_RIGHT:
-                if((++display_col_shift & 0x3F) == 0)
-                    display_state = DISPLAY_STATE_RIGHT;
-                update_display();
-                break;
-        }
+        display_row_shift--;
     }
+    if (display_row_shift == 0)
+    {
+        print_top_time();
+        print_bottom_dow();
+        print_bottom_date();
+        print_bottom_temperature();
+        display_state = DISPLAY_STATE_ACTIVE;
+        timer_register(DISPLAY_TIMER_ID, 50, display_wait_down);
+    }
+    display_update();
+}
+
+void display_scroll_down(void)
+{
+    if (display_row_shift < 16)
+    {
+        display_row_shift++;
+        display_update();
+    }
+    if (display_row_shift == 16)
+    {
+        timer_register(DISPLAY_TIMER_ID, 50, display_wait_right);
+    }
+}
+
+void display_scroll_right(void)
+{
+    if((++display_col_shift & 0x3F) == 0)
+    {
+        timer_register(DISPLAY_TIMER_ID, 50, display_wait_right);
+    }
+    display_update();
 }
 
 void display_handler(void)
@@ -473,104 +490,56 @@ void display_handler(void)
         if (spi_ready())
         {
             display_update_flag--;
-            matrix_load_row(display_update_flag);
+            display_load_row(display_update_flag);
         }
     }
 }
 
-static uint8_t display_update_flag_counter=0;
+void display_activate(void)
+{
+    display_state = DISPLAY_STATE_ACTIVATING;
+    print_full_time();
+    display_update();
+    timer_register(DISPLAY_TIMER_ID, 1, display_scroll_up);
+}
+
+void display_deactivate(void)
+{
+    display_state = DISPLAY_STATE_INACTIVE;
+    display_clear_buf();
+    display_row_shift = 16;
+    display_col_shift = 0;
+    display_update();
+    timer_stop(DISPLAY_TIMER_ID);
+}
 
 void time_update_handler(void)
 {
-    if(PIND & (1 << PD3))
+    if(display_state == DISPLAY_STATE_ACTIVE)
     {
-        if(DISPLAY_off_timer == 0)
+        if(get_second_bcd() == 0)
         {
-            print_full_time();
-            display_state = DISPLAY_STATE_GOTO_UP;
-            DISPLAY_off_timer = 2;
-        }
-        else if(DISPLAY_off_timer != 0xFF)
-        {
-            DISPLAY_off_timer++;
-        }
-    }
-    else if(DISPLAY_off_timer)
-    {
-        DISPLAY_off_timer--;
-        if(DISPLAY_off_timer == 0)
-        {
-            clear_display_buf();
-            display_row_shift = 16;
-            display_col_shift = 0;
-            display_state = DISPLAY_STATE_DOWN;
-            update_display();
-        }
-    }
-
-    if(DISPLAY_off_timer)
-    {
-        if(display_state & (DISPLAY_STATE_GOTO_UP | DISPLAY_STATE_UP | DISPLAY_STATE_GOTO_DOWN))
-        {
-            if(get_second_bcd() == 0)
+            if (display_row_shift < 16)
             {
                 print_full_time();
             }
-        }
-
-        if(display_state != DISPLAY_STATE_GOTO_UP)
-        {
-            print_top_time();
-            print_bottom_illumination();
-            if(get_second_bcd() == 0)
+            if((get_hour() == 0) && (get_minute_bcd() == 0))
             {
-                if((get_hour() == 0) && (get_minute_bcd() == 0))
-                {
-                    print_bottom_dow();
-                    print_bottom_date();
-                }
-            }
-            else if(get_second_bcd() == 0x30)
-            {
-                print_bottom_temperature();
+                print_bottom_dow();
+                print_bottom_date();
             }
         }
-        update_display();
-
-        switch(display_state)
+        else if(get_second_bcd() == 0x30)
         {
-            case DISPLAY_STATE_RIGHT:
-                if(display_update_flag_counter++ == 5)
-                {
-                    display_state = DISPLAY_STATE_GOTO_RIGHT;
-                    display_update_flag_counter = 0;
-                    display_col_shift++;
-                }
-                break;
-            case DISPLAY_STATE_DOWN:
-                if(display_update_flag_counter++ == 5)
-                {
-                    display_state = DISPLAY_STATE_GOTO_RIGHT;
-                    display_update_flag_counter = 0;
-                }
-                break;
-            case DISPLAY_STATE_UP:
-                if(display_update_flag_counter++ == 5)
-                {
-                    print_top_time();
-                    print_bottom_dow();
-                    print_bottom_date();
-                    print_bottom_temperature();
-                    display_state = DISPLAY_STATE_GOTO_DOWN;
-                    display_update_flag_counter = 0;
-                    display_col_shift = 0;
-                }
-                break;
-            case DISPLAY_STATE_GOTO_UP:
-            case DISPLAY_STATE_GOTO_DOWN:
-                break;
-            case DISPLAY_STATE_GOTO_RIGHT:
-                break;
+            print_bottom_temperature();
         }
+        print_top_time();
+        print_bottom_illumination();
+        display_update();
+    }
+    else if(display_state == DISPLAY_STATE_ACTIVATING)
+    {
+        print_full_time();
+        display_update();
     }
 }
