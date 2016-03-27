@@ -9,6 +9,8 @@
 #include <stdint.h>
 #include "motion.h"
 
+#define MOTION_SENSOR_ENABLED
+
 #define BOOTLOADER_START_ADDRESS 0x3800
 
 SIGNAL(INT1_vect)
@@ -82,7 +84,12 @@ void setup(void)
     adc_init();
 
     asm("sei");
+
+#ifdef MOTION_SENSOR_ENABLED
     motion_init();
+#else
+    display_activate();
+#endif
 }
 
 void t_handler(void)
