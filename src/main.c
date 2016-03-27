@@ -7,10 +7,9 @@
 #include "UART.h"
 #include "timer.h"
 #include <stdint.h>
+#include "motion.h"
 
 #define BOOTLOADER_START_ADDRESS 0x3800
-
-#define MOTION_TIMER_ID 1
 
 SIGNAL(INT1_vect)
 {
@@ -83,31 +82,7 @@ void setup(void)
     adc_init();
 
     asm("sei");
-}
-
-void motion_handler(void)
-{
-    static uint8_t off_timer=0;
-    if(PIND & (1 << PD3))
-    {
-        if(off_timer == 0)
-        {
-            display_activate();
-            off_timer = 2;
-        }
-        else if(off_timer != 0xFF)
-        {
-            off_timer++;
-        }
-    }
-    else if(off_timer)
-    {
-        off_timer--;
-        if(off_timer == 0)
-        {
-            display_deactivate();
-        }
-    }
+    motion_init();
 }
 
 void t_handler(void)
@@ -133,7 +108,6 @@ int main(void)
 {
     setup();
     uart_send_byte('S');
-    timer_register(MOTION_TIMER_ID, 10, motion_handler);
     // set_time(0,11,21,3,22,3,16);
     while(1)
     {
