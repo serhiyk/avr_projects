@@ -8,10 +8,9 @@
 #include "timer.h"
 #include <stdint.h>
 #include "motion.h"
+#include "serial.h"
 
 #define MOTION_SENSOR_ENABLED
-
-#define BOOTLOADER_START_ADDRESS 0x3800
 
 SIGNAL(INT1_vect)
 {
@@ -44,34 +43,10 @@ static volatile uint16_t l;
     l = ADC;
 }*/
 
-void bootloader_handler(uint8_t byte)
-{
-    static uint8_t index = 0;
-    static const uint8_t reset_command[] = {0x00, 0x18, 0xF8};
-
-    if (byte == reset_command[index]) {
-        index++;
-        if (index == sizeof(reset_command)) {
-            ((void (*)(void))BOOTLOADER_START_ADDRESS)();
-        }
-    }
-}
-
-void UART_handler(void)
-{
-    uint8_t tmp;
-
-    do {
-        tmp = uart_get_byte();
-        bootloader_handler(tmp);
-    } while (uart_check_receiver());
-}
-
 void setup(void)
 {
-
+    serial_init();
     ds3231_init();
-    uart_init();
     timer_init();
     asm("sei");
     //_delay_ms(5);
@@ -120,12 +95,7 @@ int main(void)
     {
         ds3231_handler(time_update_handler);
         display_handler();
-        //_delay_ms(1000);
-        //uart_send_byte('a');
-        //PORTB ^= 1 << PB5;
-        if (uart_check_receiver()) {
-            UART_handler();
-        }
+        serial_handler();
         timer_handler();
     }
 }
