@@ -20,6 +20,7 @@ uint8_t get_year(void);
 // Last 2 digits only
 
 void set_time(uint8_t second, uint8_t minute, uint8_t hour, uint8_t dow, uint8_t date, uint8_t month, uint8_t year);
+void set_time_bcd(uint8_t second, uint8_t minute, uint8_t hour, uint8_t dow, uint8_t date, uint8_t month, uint8_t year);
 
 // Temperature function
 int8_t get_temperature(void);

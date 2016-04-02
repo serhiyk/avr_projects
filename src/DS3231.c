@@ -138,6 +138,20 @@ void set_time(uint8_t second, uint8_t minute, uint8_t hour, uint8_t dow, uint8_t
     twi_master_send(DS3231_ADDRESS, ds3231_buf, 17, 0);
 }
 
+void set_time_bcd(uint8_t second, uint8_t minute, uint8_t hour, uint8_t dow, uint8_t date, uint8_t month, uint8_t year)
+{
+    while (!twi_ready());
+    ds3231_buf[0] = DS3231_REG_SECONDS;
+    ds3231_buf[1] = second;
+    ds3231_buf[2] = minute;
+    ds3231_buf[3] = hour;// & 0b10111111;
+    ds3231_buf[4] = dow;
+    ds3231_buf[5] = date;
+    ds3231_buf[6] = month;
+    ds3231_buf[7] = year;
+    twi_master_send(DS3231_ADDRESS, ds3231_buf, 8, 0);
+}
+
 int8_t get_temperature(void)
 {
     return ds3231_buf[DS3231_REG_TEMP_MSB];    // Here's the MSB

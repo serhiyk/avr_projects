@@ -1,19 +1,22 @@
 #include <stdint.h>
 #include "UART.h"
+#include "DS3231.h"
 #include "serial.h"
 
 #define BOOTLOADER_START_ADDRESS 0x3800
 
 typedef void (*command_cb)(void);
 void command_goto_bootloader(void);
+void command_set_time(void);
 
 #define SERIAL_FIRST_COMMAND 0x30
 #define SERIAL_COMMAND_END 0x20
 
-#define SERIAL_COMMAND_COUNT 1
+#define SERIAL_COMMAND_COUNT 2
 static command_cb serial_command_list[SERIAL_COMMAND_COUNT] =
 {
-    command_goto_bootloader
+    command_goto_bootloader,
+    command_set_time
 };
 
 #define SERIAL_COMMAND_MAX_LEN 32
@@ -57,4 +60,27 @@ void command_goto_bootloader(void)
         return;
     }
     ((void (*)(void))BOOTLOADER_START_ADDRESS)();
+}
+
+void command_set_time(void)
+{
+    if (serial_command_index != 15)
+    {
+        return;
+    }
+    for (uint8_t i=1; i<15; i++)
+    {
+        if (serial_command_buf[i] < '0' || serial_command_buf[i] > '9')
+        {
+            return;
+        }
+        serial_command_buf[i] -= '0';
+    }
+    set_time_bcd((serial_command_buf[1] << 4) | serial_command_buf[2],
+                 (serial_command_buf[3] << 4) | serial_command_buf[4],
+                 (serial_command_buf[5] << 4) | serial_command_buf[6],
+                 (serial_command_buf[7] << 4) | serial_command_buf[8],
+                 (serial_command_buf[9] << 4) | serial_command_buf[10],
+                 (serial_command_buf[11] << 4) | serial_command_buf[12],
+                 (serial_command_buf[13] << 4) | serial_command_buf[14]);
 }
