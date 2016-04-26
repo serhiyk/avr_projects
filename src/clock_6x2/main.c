@@ -11,15 +11,8 @@
 #include "serial.h"
 
 #define MOTION_SENSOR_ENABLED
-
-SIGNAL(INT1_vect)
-{
-    /*if(PIND & (1 << PD3))
-        uart_send_byte('1');
-    else
-        uart_send_byte('0');*/
-    //ADCSRA |= 1 << ADSC;
-}
+#define RTC_ENABLED
+#define DISPLAY_ENABLED
 
 void adc_init(void)
 {
@@ -45,16 +38,21 @@ static volatile uint16_t l;
 
 void setup(void)
 {
+    spi_master_init();
     serial_init();
+#ifdef RTC_ENABLED
     ds3231_init();
+#endif
     timer_init();
     asm("sei");
     //_delay_ms(5);
+#ifdef DISPLAY_ENABLED
     display_init();
+#endif
 
     //PORTD |= 1 << PD3;
-    EICRA |= 1 << ISC10;    // Any logical change on INT1 generates an interrupt request
-    EIMSK |= 1 << INT1; // External Interrupt Request 1 Enable
+    // EICRA |= 1 << ISC10;    // Any logical change on INT1 generates an interrupt request
+    // EIMSK |= 1 << INT1; // External Interrupt Request 1 Enable
 
     adc_init();
 
@@ -93,8 +91,12 @@ int main(void)
     // set_time(0,11,21,3,22,3,16);
     while(1)
     {
+#ifdef RTC_ENABLED
         ds3231_handler(time_update_handler);
+#endif
+#ifdef DISPLAY_ENABLED
         display_handler();
+#endif
         serial_handler();
         timer_handler();
     }

@@ -85,7 +85,6 @@ void display_clear_buf(void);
 
 void display_init(void)
 {
-    spi_master_init();
     display_clear_buf();
     print_full_time();
     max7219_send_all(max7219_reg_scanLimit, 0x07);

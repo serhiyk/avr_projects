@@ -79,8 +79,22 @@ TARGET = main
 OBJDIR = .
 
 
+VPATH = ../drivers
+
+
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(TARGET).c serial.c motion.c timer.c display.c fonts.c DS3231.c UART.c TWI.c SPI.c cyrillicfont.c text.c
+SRC = $(TARGET).c \
+	serial.c \
+	motion.c \
+	timer.c \
+	display.c \
+	fonts.c \
+	DS3231.c \
+	UART.c \
+	TWI.c \
+	SPI.c \
+	cyrillicfont.c \
+	text.c
 
 
 # List C++ source files here. (C dependencies are automatically generated.)
@@ -114,7 +128,7 @@ DEBUG = dwarf-2
 #     Each directory must be seperated by a space.
 #     Use forward slashes for directory separators.
 #     For a directory that has spaces, enclose it in quotes.
-EXTRAINCDIRS =
+EXTRAINCDIRS = ../drivers
 
 
 # Compiler flag to set the C Standard level.

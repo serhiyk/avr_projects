@@ -17,7 +17,7 @@ void motion_init(void)
 void motion_handler(void)
 {
     static uint8_t off_timer=0;
-    if(PIND & (1 << PD3))
+    if(PIND & (1 << PD6))
     {
         if(off_timer == 0)
         {
