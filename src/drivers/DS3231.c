@@ -1,7 +1,10 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include "TWI.h"
+#include "serial.h"
 #include "DS3231.h"
+
+#define COMMAND_ID_SET_TIME 1
 
 #define DS3231_REG_SECONDS 0x00
 #define DS3231_REG_MINUTES 0x01
@@ -157,12 +160,37 @@ int8_t get_temperature(void)
     return ds3231_buf[DS3231_REG_TEMP_MSB];    // Here's the MSB
 }
 
+void command_set_time(uint8_t *cmd, uint8_t len)
+{
+    if (len != 15)
+    {
+        return;
+    }
+    for (uint8_t i=1; i<15; i++)
+    {
+        if (cmd[i] < '0' || cmd[i] > '9')
+        {
+            return;
+        }
+        cmd[i] -= '0';
+    }
+    set_time_bcd((cmd[1] << 4) | cmd[2],
+                 (cmd[3] << 4) | cmd[4],
+                 (cmd[5] << 4) | cmd[6],
+                 (cmd[7] << 4) | cmd[8],
+                 (cmd[9] << 4) | cmd[10],
+                 (cmd[11] << 4) | cmd[12],
+                 (cmd[13] << 4) | cmd[14]);
+}
+
 void ds3231_init(void)
 {
     twi_init();
 
     EICRA |= 1 << ISC01; // The falling edge of INT0 generates an interrupt request
     EIMSK |= 1 << INT0; // External Interrupt Request 0 Enable
+
+    serial_register_command(COMMAND_ID_SET_TIME, command_set_time);
 }
 
 SIGNAL(INT0_vect)
