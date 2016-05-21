@@ -16,6 +16,14 @@
 #define NRF_ADDR_LEN 5
 
 static volatile uint8_t nrf_int_flag=0;
+static uint8_t nrf_buf[NRF_BUF_SIZE];
+
+typedef struct {
+    uint8_t rx_len;
+    nrf_cb callback;
+} nrf_descriptor_t;
+
+static nrf_descriptor_t nrf_descriptor[NRF_RX_PIPE_NUMBER];
 
 inline void _nrf_csn_low(void)
 {
@@ -95,11 +103,6 @@ uint8_t _nrf_get_status(void)
     return buf[0];
 }
 
-void nrf24_set_rx_addr(uint8_t *addr)
-{
-    _nrf_write_register(RX_ADDR_P1, addr, NRF_ADDR_LEN);
-}
-
 void nrf24_set_tx_addr(uint8_t *addr)
 {
     /* RX_ADDR_P0 must be set to the sending addr for auto ack to work. */
@@ -118,7 +121,7 @@ void nrf24l01_init(void)
 
     // Set length of incoming payload
     _nrf_write_config(RX_PW_P0, 0x00); // Auto-ACK pipe ...
-    _nrf_write_config(RX_PW_P1, NRF_PAYLOAD_LENGTH); // Data payload pipe
+    _nrf_write_config(RX_PW_P1, 0x00); // Pipe not used
     _nrf_write_config(RX_PW_P2, 0x00); // Pipe not used
     _nrf_write_config(RX_PW_P3, 0x00); // Pipe not used
     _nrf_write_config(RX_PW_P4, 0x00); // Pipe not used
@@ -131,10 +134,10 @@ void nrf24l01_init(void)
     _nrf_write_config(CONFIG, (1<<EN_CRC)|(0<<CRCO));
 
     // Auto Acknowledgment
-    _nrf_write_config(EN_AA, (1<<ENAA_P0)|(1<<ENAA_P1)|(0<<ENAA_P2)|(0<<ENAA_P3)|(0<<ENAA_P4)|(0<<ENAA_P5));
+    _nrf_write_config(EN_AA, (1<<ENAA_P0)|(0<<ENAA_P1)|(0<<ENAA_P2)|(0<<ENAA_P3)|(0<<ENAA_P4)|(0<<ENAA_P5));
 
     // Enable RX addresses
-    _nrf_write_config(EN_RXADDR, (1<<ERX_P0)|(1<<ERX_P1)|(0<<ERX_P2)|(0<<ERX_P3)|(0<<ERX_P4)|(0<<ERX_P5));
+    _nrf_write_config(EN_RXADDR, (1<<ERX_P0)|(0<<ERX_P1)|(0<<ERX_P2)|(0<<ERX_P3)|(0<<ERX_P4)|(0<<ERX_P5));
 
     // Auto retransmit delay: 1000 us and Up to 15 retransmit trials
     _nrf_write_config(SETUP_RETR, (0x04<<ARD)|(0x0F<<ARC));
@@ -147,6 +150,37 @@ void nrf24l01_init(void)
 
     EICRA |= 1 << ISC11; // The falling edge of INT1 generates an interrupt request
     EIMSK |= 1 << INT1; // External Interrupt Request 1 Enable
+}
+
+uint8_t nrf24_register_cb(uint8_t pipe, uint8_t *addr, uint8_t addr_len, uint8_t rx_len, nrf_cb callback)
+{
+    if (pipe == 0 || pipe > NRF_RX_PIPE_NUMBER || !callback)
+    {
+        return 1;
+    }
+    uint8_t tmp;
+
+    // Set length of incoming payload
+    _nrf_write_config(RX_PW_P0 + pipe, rx_len);
+
+    // Enable auto acknowledgment
+    _nrf_read_register(EN_AA, &tmp, 1);
+    tmp |= 1 << pipe;
+    _nrf_write_config(EN_AA, tmp);
+
+    // Enable RX address
+    _nrf_read_register(EN_RXADDR, &tmp, 1);
+    tmp |= 1 << pipe;
+    _nrf_write_config(EN_RXADDR, tmp);
+
+    // Set RX address
+    _nrf_write_register(RX_ADDR_P0 + pipe, addr, addr_len);
+
+    pipe--;
+
+    nrf_descriptor[pipe].rx_len = rx_len;
+    nrf_descriptor[pipe].callback = callback;
+    return 0;
 }
 
 void nrf24_send(uint8_t *tx_buf, uint8_t len)
@@ -190,25 +224,17 @@ void nrf24_send(uint8_t *tx_buf, uint8_t len)
     _nrf_ce_high();
 }
 
-/* Reads payload bytes into data array */
-void nrf24_get_data(uint8_t *rx_buf)
+void _nrf_get_data(uint8_t pipe)
 {
-    /* Pull down chip select */
-    _nrf_csn_low();
-
-    /* Send cmd to read rx payload */
-    // spi_transfer( R_RX_PAYLOAD );
     uint8_t buf[] = {R_RX_PAYLOAD};
-    while(!spi_ready());
+    _nrf_csn_low();
     spi_master_send_blocking(buf, 1);
-
-    /* Read payload */
-    spi_master_transfer_blocking(rx_buf, rx_buf, NRF_PAYLOAD_LENGTH);
-    /* Pull up chip select */
+    spi_master_transfer_blocking(nrf_buf, nrf_buf, nrf_descriptor[pipe].rx_len);
     _nrf_csn_high();
-
-    /* Reset status register */
-    _nrf_write_config(STATUS, (1<<RX_DR));
+    if (nrf_descriptor[pipe].callback)
+    {
+        nrf_descriptor[pipe].callback(nrf_buf);
+    }
 }
 
 SIGNAL(INT1_vect)
@@ -226,19 +252,14 @@ void nrf24_handler(void)
         }
         nrf_int_flag = 0;
         uint8_t t =_nrf_get_status();
-
+        uart_send_hex(t);
         if (t & (1 << MAX_RT))
         {
             uart_send_byte('F');
-            /* Pull down chip select */
             _nrf_csn_low();
-
             /* Write cmd to flush transmit FIFO */
-            uint8_t buf[1];
-            buf[0] = FLUSH_TX;
+            uint8_t buf[] = {FLUSH_TX};
             spi_master_send_blocking(buf, 1);
-
-            /* Pull up chip select */
             _nrf_csn_high();
             _nrf_powerup_rx();
         }
@@ -250,12 +271,8 @@ void nrf24_handler(void)
         if (t & (1 << RX_DR))
         {
             uart_send_byte('R');
-            static uint8_t buf[NRF_PAYLOAD_LENGTH];
-            nrf24_get_data(buf);
-            uart_send_byte(buf[0]);
-            uart_send_byte(buf[1]);
-            uart_send_byte(buf[2]);
-            uart_send_byte(buf[3]);
+            uint8_t pipe = ((t>>1)&7)-1;
+            _nrf_get_data(pipe);
         }
         // uart_send_hex(t);
         _nrf_write_config(STATUS,(1<<RX_DR)|(1<<TX_DS)|(1<<MAX_RT));

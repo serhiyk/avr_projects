@@ -13,6 +13,14 @@
 uint8_t tx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
 uint8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
 
+void nrf_test_cb(uint8_t *buf)
+{
+    uart_send_byte(buf[0]);
+    uart_send_byte(buf[1]);
+    uart_send_byte(buf[2]);
+    uart_send_byte(buf[3]);
+}
+
 void setup(void)
 {
     spi_master_init();
@@ -21,7 +29,7 @@ void setup(void)
     asm("sei");
     //_delay_ms(5);
     nrf24l01_init();
-    nrf24_set_rx_addr(rx_address);
+    nrf24_register_cb(1, rx_address, sizeof(rx_address), 4, nrf_test_cb);
     nrf24_set_tx_addr(tx_address);
 }
 
