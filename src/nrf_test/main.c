@@ -30,7 +30,7 @@ void setup(void)
     //_delay_ms(5);
     nrf24l01_init();
     nrf24_register_cb(1, rx_address, sizeof(rx_address), 4, nrf_test_cb);
-    nrf24_set_tx_addr(tx_address);
+    nrf24_set_tx_addr(tx_address, 5);
 }
 
 void test_nrf_send(void)

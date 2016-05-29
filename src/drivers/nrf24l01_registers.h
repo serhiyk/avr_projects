@@ -106,7 +106,7 @@
 /* fifo status */
 #define FIFO_STATUS 0x17
 #define TX_REUSE    6
-#define TX_FULL     5
+// #define TX_FULL     5
 #define TX_EMPTY    4
 #define RX_FULL     1
 #define RX_EMPTY    0
