@@ -11,6 +11,8 @@
 #include "DS3231.h"
 #include "SPI.h"
 #include "timer.h"
+#include "sensors.h"
+#include "ds18b20.h"
 #include "display.h"
 
 #define DISPLAY_TIMER_ID 0
@@ -312,20 +314,74 @@ void print_bottom_date(void)
 
 void print_bottom_temperature(void)
 {
-    int8_t temp = get_temperature();
-    int8_t temp_h=temp / 10;
-    temp %= 10;
-
-    for (uint8_t j=0; j<7; j++)
+    uint8_t temp_h, temp_l, temp_f;
+    uint16_t ext_temp = sensors_get_temperature();
+    if (ext_temp == DS18B20_INVALID_TEMPERATURE)
     {
-        display_bottom_buf[j][18] = dDigital7table(temp_h, j) | (dDigital7table(temp, j) >> 6);
-        display_bottom_buf[j][19] = (dDigital7table(temp, j) << 2);
+        for (uint8_t i=0; i<7; i++)
+        {
+            display_bottom_buf[i][16] = 0;
+            display_bottom_buf[i][17] = 0;
+            display_bottom_buf[i][18] = 0;
+        }
+    }
+    else
+    {
+        if (ext_temp & 0x0800)
+        {
+            ext_temp = ~ext_temp;
+            ext_temp++;
+            ext_temp |= 0x0800;
+        }
+        temp_l = ext_temp >> 4;
+        temp_h = temp_l / 10;
+        temp_l %= 10;
+        temp_f = ext_temp & 0x0F;
+        temp_f *= 10;
+        temp_f /= 16;
+        if (ext_temp & 0x0800)
+        {
+            for (uint8_t i=0; i<7; i++)
+            {
+                display_bottom_buf[i][16] = dDigital7table(temp_h, i) >> 4;
+                display_bottom_buf[i][17] = (dDigital7table(temp_h, i) << 4) | (dDigital7table(temp_l, i) >> 2);
+                display_bottom_buf[i][18] = dDigital7table(temp_f, i) >> 2;
+            }
+            display_bottom_buf[3][16] |= 0xE0;
+            display_bottom_buf[6][18] |= 0x80;
+            display_bottom_buf[0][19] |= 0x60;
+            display_bottom_buf[1][19] |= 0x90;
+            display_bottom_buf[2][19] |= 0x90;
+            display_bottom_buf[3][19] |= 0x60;
+        }
+        else
+        {
+            for (uint8_t i=0; i<7; i++)
+            {
+                display_bottom_buf[i][16] = dDigital7table(temp_h, i) | (dDigital7table(temp_l, i) >> 6);
+                display_bottom_buf[i][17] = (dDigital7table(temp_l, i) << 2) | (dDigital7table(temp_f, i) >> 6);
+                display_bottom_buf[i][18] = dDigital7table(temp_f, i) << 2;
+            }
+            display_bottom_buf[6][17] |= 0x08;
+            display_bottom_buf[0][18] |= 0x06;
+            display_bottom_buf[1][18] |= 0x09;
+            display_bottom_buf[2][18] |= 0x09;
+            display_bottom_buf[3][18] |= 0x06;
+        }
     }
 
-    display_bottom_buf[0][19] |= 0x06;
-    display_bottom_buf[1][19] |= 0x09;
-    display_bottom_buf[2][19] |= 0x09;
-    display_bottom_buf[3][19] |= 0x06;
+    temp_l = get_temperature();
+    temp_h=temp_l / 10;
+    temp_l %= 10;
+    for (uint8_t i=0; i<7; i++)
+    {
+        display_bottom_buf[i][20] = dDigital7table(temp_h, i) | (dDigital7table(temp_l, i) >> 6);
+        display_bottom_buf[i][21] = (dDigital7table(temp_l, i) << 2);
+    }
+    display_bottom_buf[0][21] |= 0x06;
+    display_bottom_buf[1][21] |= 0x09;
+    display_bottom_buf[2][21] |= 0x09;
+    display_bottom_buf[3][21] |= 0x06;
 }
 
 void print_bottom_illumination(void)
