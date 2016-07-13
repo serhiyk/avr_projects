@@ -1,6 +1,8 @@
 #ifndef DS18B20_H
 #define DS18B20_H
 
+#define DS18B20_INVALID_TEMPERATURE 0x8000
+
 typedef void (*ds18b20_cb)(uint16_t data);
 
 uint8_t ds18b20_convert(void);

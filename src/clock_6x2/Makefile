@@ -94,7 +94,9 @@ SRC = $(TARGET).c \
 	TWI.c \
 	SPI.c \
 	cyrillicfont.c \
-	text.c
+	text.c \
+	nrf24l01.c \
+	sensors.c
 
 
 # List C++ source files here. (C dependencies are automatically generated.)
@@ -274,7 +276,7 @@ EXTMEMOPTS =
 #  -Wl,...:     tell GCC to pass this to linker.
 #    -Map:      create map file
 #    --cref:    add cross reference to  map file
-LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
+# LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += $(EXTMEMOPTS)
 LDFLAGS += $(patsubst %,-L%,$(EXTRALIBDIRS))
 LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)

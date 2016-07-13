@@ -9,8 +9,10 @@
 #include <stdint.h>
 #include "motion.h"
 #include "serial.h"
+#include "nrf24l01.h"
+#include "sensors.h"
 
-#define MOTION_SENSOR_ENABLED
+// #define MOTION_SENSOR_ENABLED
 #define RTC_ENABLED
 #define DISPLAY_ENABLED
 
@@ -63,6 +65,8 @@ void setup(void)
 #else
     display_activate();
 #endif
+    nrf24l01_init();
+    sensors_init();
 }
 
 void t_handler(void)
@@ -98,6 +102,7 @@ int main(void)
         display_handler();
 #endif
         serial_handler();
+        nrf24_handler();
         timer_handler();
     }
 }

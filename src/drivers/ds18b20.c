@@ -83,7 +83,7 @@ void _pull_up1_cb(uint8_t data)
     {
         if (ds18b20_callback)
         {
-            ds18b20_callback(data);
+            ds18b20_callback(DS18B20_INVALID_TEMPERATURE);
         }
         state = DS18B20_READY;
         return;
