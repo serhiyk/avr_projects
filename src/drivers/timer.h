@@ -3,8 +3,6 @@
 
 #include <stdint.h>
 
-#define TIMER_NUMBER 2
-
 typedef void (*timer_cb)(void);
 void timer_init(void);
 uint8_t timer_register(uint8_t timer, uint8_t timeout, timer_cb callback);

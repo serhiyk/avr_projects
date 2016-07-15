@@ -1,6 +1,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Timer config */
+#define TIMER_NUMBER 1
+
 /* nRF24L01 config */
 // The RF channel frequency: F = 2400 + CONFIG_NRF_CHANNEL [MHz] (0 - 125)
 #define CONFIG_NRF_CHANNEL 2

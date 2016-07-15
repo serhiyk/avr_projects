@@ -3,6 +3,7 @@
 #include <avr/sleep.h>
 #include <util/delay.h>
 #include "UART.h"
+#include "SPI.h"
 #include "timer.h"
 #include <stdint.h>
 #include "serial.h"

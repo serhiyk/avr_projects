@@ -1,6 +1,11 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include "config.h"
 #include "timer.h"
+
+#if !defined(TIMER_NUMBER)
+    #error TIMER_NUMBER is not defined
+#endif
 
 typedef struct {
     uint8_t timeout;
