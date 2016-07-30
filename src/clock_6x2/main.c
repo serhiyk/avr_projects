@@ -9,6 +9,7 @@
 #include "motion.h"
 #include "serial.h"
 #include "nrf24l01.h"
+#include "max7219.h"
 #include "sensors.h"
 
 // #define MOTION_SENSOR_ENABLED
@@ -98,7 +99,7 @@ int main(void)
         ds3231_handler(time_update_handler);
 #endif
 #ifdef DISPLAY_ENABLED
-        display_handler();
+        max7219_handler();
 #endif
         serial_handler();
         nrf24_handler();

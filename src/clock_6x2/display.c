@@ -3,13 +3,13 @@
 #include <avr/pgmspace.h>
 #include <util/delay.h>
 #include <stdint.h>
+#include "config.h"
 #include "max7219.h"
 #include "fonts.h"
 #include "cyrillicfont.h"
 #include "text.h"
 #include "UART.h"
 #include "DS3231.h"
-#include "SPI.h"
 #include "timer.h"
 #include "sensors.h"
 #include "ds18b20.h"
@@ -17,15 +17,13 @@
 
 #define DISPLAY_TIMER_ID 0
 
-#define MAX7219_NUMBER 12
 #define MAX7219_PER_ROW 6
-#define MAX7219_ROWS 8
 
 #define DISPLAY_VIRTUAL_ROWS 32
 #define DISPLAY_ROWS 16
 #define DISPLAY_BOTTOM_2_SHIFT 64
 
-const uint8_t BitReverseTable256[] PROGMEM =
+const uint8_t bit_reverse_table256[] PROGMEM =
 {
     0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0,
     0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8, 0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8,
@@ -44,7 +42,7 @@ const uint8_t BitReverseTable256[] PROGMEM =
     0x07, 0x87, 0x47, 0xC7, 0x27, 0xA7, 0x67, 0xE7, 0x17, 0x97, 0x57, 0xD7, 0x37, 0xB7, 0x77, 0xF7,
     0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF
 };
-#define reverse(byte) pgm_read_byte(&BitReverseTable256[byte])
+#define reverse(byte) pgm_read_byte(&bit_reverse_table256[byte])
 
 static uint8_t display_full_buf[DISPLAY_ROWS][MAX7219_PER_ROW];
 static uint8_t display_top_buf[MAX7219_ROWS][MAX7219_PER_ROW];
@@ -57,67 +55,33 @@ static uint8_t *display_buf[DISPLAY_VIRTUAL_ROWS] =
     display_bottom_buf[0], display_bottom_buf[1], display_bottom_buf[2], display_bottom_buf[3], display_bottom_buf[4], display_bottom_buf[5], display_bottom_buf[6], display_bottom_buf[7]
 };
 
-static volatile uint8_t display_row_shift=16;
-static volatile uint8_t display_col_shift=0;
-
-static volatile uint8_t display_update_flag;
+static uint8_t display_row_shift=16;
+static uint8_t display_col_shift=0;
 
 #define DISPLAY_STATE_IDLE 0
 #define DISPLAY_STATE_ACTIVATING 1
 #define DISPLAY_STATE_ACTIVE 2
 #define DISPLAY_STATE_INACTIVE 3
-static volatile uint8_t display_state=DISPLAY_STATE_IDLE;
-
-static uint8_t spi_buf[36];
+static uint8_t display_state=DISPLAY_STATE_IDLE;
 
 void print_full_time(void);
 void print_top_time(void);
 void print_bottom_dow(void);
 void print_bottom_date(void);
 void print_bottom_temperature(void);
-void max7219_send_all(uint8_t reg, uint8_t data);
-void max7219_cs_cb(void);
 void display_wait_down(void);
 void display_wait_right(void);
 void display_scroll_up(void);
 void display_scroll_down(void);
 void display_scroll_right(void);
-void display_update(void);
 void display_clear_buf(void);
 
 void display_init(void)
 {
     display_clear_buf();
     print_full_time();
-    max7219_send_all(max7219_reg_scanLimit, 0x07);
-    max7219_send_all(max7219_reg_decodeMode, 0x00);  // using an led matrix (not digits)
-    max7219_send_all(max7219_reg_shutdown, 0x01);    // not in shutdown mode
-    max7219_send_all(max7219_reg_displayTest, 0x00); // no display test
-    max7219_send_all(max7219_reg_intensity, 0x0f & 0x01);    // the first 0x0f is the value you can set range: 0x00 to 0x0f
-    display_update();
-}
-
-void display_update(void)
-{
-    display_update_flag = 8;
-}
-
-void max7219_cs_cb(void)
-{
-    PORTB &= ~(1<<PB2);
-    PORTB |= 1<<PB2;
-}
-
-void max7219_send_all(uint8_t reg, uint8_t data)
-{
-    uint8_t *buf=spi_buf;
-    for(uint8_t i=0; i<MAX7219_NUMBER; i++)
-    {
-        *buf++ = reg;
-        *buf++ = data;
-    }
-    spi_master_send(spi_buf, MAX7219_NUMBER*2, max7219_cs_cb);
-    while (!spi_ready());
+    max7219_init();
+    max7219_update();
 }
 
 void print_full_time(void)
@@ -434,13 +398,11 @@ void display_clear_buf(void)
             display_buf[i][j] = 0;
 }
 
-void display_load_row(uint8_t r)
+void max7219_load_row(uint8_t r, uint8_t *buf)
 {
     uint8_t tmp, col, row;
     uint8_t col_shift = display_col_shift & 7;
     uint8_t matrix_shift = display_col_shift >> 3;
-    uint8_t *buf=spi_buf;
-
 
     for(uint8_t m=0; m<MAX7219_NUMBER; m++)
     {
@@ -485,7 +447,6 @@ void display_load_row(uint8_t r)
             *buf++ = tmp;
         }
     }
-    spi_master_send(spi_buf, MAX7219_NUMBER*2, max7219_cs_cb);
 }
 
 void display_wait_right(void)
@@ -513,7 +474,7 @@ void display_scroll_up(void)
         display_state = DISPLAY_STATE_ACTIVE;
         timer_register(DISPLAY_TIMER_ID, 50, display_wait_down);
     }
-    display_update();
+    max7219_update();
 }
 
 void display_scroll_down(void)
@@ -521,7 +482,7 @@ void display_scroll_down(void)
     if (display_row_shift < 16)
     {
         display_row_shift++;
-        display_update();
+        max7219_update();
     }
     if (display_row_shift == 16)
     {
@@ -535,26 +496,14 @@ void display_scroll_right(void)
     {
         timer_register(DISPLAY_TIMER_ID, 50, display_wait_right);
     }
-    display_update();
-}
-
-void display_handler(void)
-{
-    if(display_update_flag)
-    {
-        if (spi_ready())
-        {
-            display_update_flag--;
-            display_load_row(display_update_flag);
-        }
-    }
+    max7219_update();
 }
 
 void display_activate(void)
 {
     display_state = DISPLAY_STATE_ACTIVATING;
     print_full_time();
-    display_update();
+    max7219_update();
     timer_register(DISPLAY_TIMER_ID, 1, display_scroll_up);
 }
 
@@ -564,7 +513,7 @@ void display_deactivate(void)
     display_clear_buf();
     display_row_shift = 16;
     display_col_shift = 0;
-    display_update();
+    max7219_update();
     timer_stop(DISPLAY_TIMER_ID);
 }
 
@@ -590,11 +539,11 @@ void time_update_handler(void)
         }
         print_top_time();
         print_bottom_illumination();
-        display_update();
+        max7219_update();
     }
     else if(display_state == DISPLAY_STATE_ACTIVATING)
     {
         print_full_time();
-        display_update();
+        max7219_update();
     }
 }

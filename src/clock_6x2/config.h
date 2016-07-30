@@ -27,4 +27,10 @@
 #define CONFIG_NRF_RX_MAX_LEN 32
 #define CONFIG_NRF_RX_PIPE_NUMBER 2
 
+/* MAX7219 config */
+#define MAX7219_NUMBER 12
+#define MAX7219_CS_PORT PORTB
+#define MAX7219_CS_DDR DDRB
+#define MAX7219_CS_PIN PB2
+
 #endif  /* CONFIG_H */
