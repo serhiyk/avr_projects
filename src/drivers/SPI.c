@@ -20,7 +20,7 @@ static volatile spi_descriptor_t spi_descriptor;
 void spi_master_init(void)
 {
     /* Set MOSI and SCK output, all others input */
-    DDRB |= (1<<PB3)|(1<<PB5);
+    DDRB |= (1<<PB3)|(1<<PB5)|(1<<PB2);
     /* Enable SPI, Master, set clock rate fck/16 */
     SPCR = (1<<SPIE)|(1<<SPE)|(1<<MSTR)|(1<<SPR0);
 }
