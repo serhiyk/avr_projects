@@ -85,7 +85,6 @@ VPATH = ../drivers
 # List C source files here. (C dependencies are automatically generated.)
 SRC = $(TARGET).c \
 	serial.c \
-	motion.c \
 	timer.c \
 	display.c \
 	fonts.c \

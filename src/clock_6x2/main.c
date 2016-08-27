@@ -4,9 +4,9 @@
 #include <util/delay.h>
 #include "DS3231.h"
 #include "UART.h"
+#include "SPI.h"
 #include "timer.h"
 #include <stdint.h>
-#include "motion.h"
 #include "serial.h"
 #include "nrf24l01.h"
 #include "max7219.h"
@@ -16,30 +16,81 @@
 #define RTC_ENABLED
 #define DISPLAY_ENABLED
 
+#define MOTION_TIMER_ID 1
+#define MOTION_TIMER_PERIOD 10 // 1 second
+#define MOTION_PIN (PIND & (1 << PD6))
+#define IDLE_COUNTER_INIT_VALUE 2
+
+#define LED_CONTROL_PORT PORTB
+#define LED_CONTROL_DDR DDRB
+#define LED_CONTROL_PIN PB1
+
+#define ILLUMINANCE_ON_VALUE 200
+#define ILLUMINANCE_OFF_VALUE 100
+
+static uint8_t idle_counter=0;
+
 void adc_init(void)
 {
     // AREF = AVcc
     ADMUX = (1 << REFS0);
-
     DIDR0 = 1 << ADC0D;
-
     ADCSRB |= (1 << ADTS1);
-
     // ADC Enable and prescaler of 128
     // 16000000/128 = 125000
     ADCSRA = (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0) | (1 << ADATE) | (0 << ADIE);
 }
 
-static volatile uint8_t adc_f=1;
-static volatile uint16_t l;
-
-/*SIGNAL(ADC_vect)
+SIGNAL(PCINT2_vect)
 {
-    l = ADC;
-}*/
+    // motion interrupt
+}
+
+inline static void motion_handler(void)
+{
+    if (idle_counter == 0 && MOTION_PIN)
+    {
+        if (ADC < ILLUMINANCE_ON_VALUE)
+        {
+            LED_CONTROL_PORT |= 1 << LED_CONTROL_PIN;
+        }
+        display_activate();
+        idle_counter = IDLE_COUNTER_INIT_VALUE;
+    }
+}
+
+void motion_timer(void)
+{
+    if (MOTION_PIN)
+    {
+        if (ADC < ILLUMINANCE_ON_VALUE)
+        {
+            LED_CONTROL_PORT |= 1 << LED_CONTROL_PIN;
+        }
+        else if (ADC > ILLUMINANCE_OFF_VALUE)
+        {
+            LED_CONTROL_PORT &= ~(1 << LED_CONTROL_PIN);
+        }
+        if (idle_counter != 0xFF && idle_counter != 0)
+        {
+            idle_counter++;
+        }
+    }
+    else if (idle_counter)
+    {
+        idle_counter--;
+        if (idle_counter == 0)
+        {
+            LED_CONTROL_PORT &= ~(1 << LED_CONTROL_PIN);
+            display_deactivate();
+        }
+    }
+}
 
 void setup(void)
 {
+    LED_CONTROL_DDR |= 1 << LED_CONTROL_PIN;
+    LED_CONTROL_PORT &= ~(1 << LED_CONTROL_PIN);
     spi_master_init();
     serial_init();
 #ifdef RTC_ENABLED
@@ -52,40 +103,19 @@ void setup(void)
     display_init();
 #endif
 
-    //PORTD |= 1 << PD3;
-    // EICRA |= 1 << ISC10;    // Any logical change on INT1 generates an interrupt request
-    // EIMSK |= 1 << INT1; // External Interrupt Request 1 Enable
-
     adc_init();
 
     asm("sei");
 
 #ifdef MOTION_SENSOR_ENABLED
-    motion_init();
+    PCMSK2 |= 1 << PCINT22;
+    PCICR |= 1 << PCIE2;  // Pin Change Interrupt Enable 2
+    timer_register(MOTION_TIMER_ID, MOTION_TIMER_PERIOD, motion_timer);
 #else
     display_activate();
 #endif
     nrf24l01_init();
     sensors_init();
-}
-
-void t_handler(void)
-{
-    uart_send_byte((get_date_bcd()>>4)+0x30);
-    uart_send_byte((get_date_bcd()&0x0F)+0x30);
-    uart_send_byte('-');
-    uart_send_byte((get_month()&0x0F)+0x30);
-    uart_send_byte(' ');
-    uart_send_byte((get_hour_bcd()>>4)+0x30);
-    uart_send_byte((get_hour_bcd()&0x0F)+0x30);
-    uart_send_byte(':');
-    uart_send_byte((get_minute_bcd()>>4)+0x30);
-    uart_send_byte((get_minute_bcd()&0x0F)+0x30);
-    uart_send_byte(':');
-    uart_send_byte((get_second_bcd()>>4)+0x30);
-    uart_send_byte((get_second_bcd()&0x0F)+0x30);
-    uart_send_byte('\n');
-    uart_send_byte('\r');
 }
 
 int main(void)
@@ -95,6 +125,9 @@ int main(void)
     // set_time(0,11,21,3,22,3,16);
     while(1)
     {
+#ifdef MOTION_SENSOR_ENABLED
+        motion_handler();
+#endif
 #ifdef RTC_ENABLED
         ds3231_handler(time_update_handler);
 #endif
