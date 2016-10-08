@@ -16,6 +16,7 @@ uint8_t get_dow(void);
 uint8_t get_date(void);
 uint8_t get_date_bcd(void);
 uint8_t get_month(void);
+uint8_t get_month_bcd(void);
 uint8_t get_year(void);
 // Last 2 digits only
 
@@ -48,6 +49,8 @@ int8_t get_temperature(void);
  *  0   0       0       0       Alarm when date, hour, min match
  *  1   0       0       0       Alarm when DoW, hour, min match
  */
+
+void ds3231_read(void);
 
 typedef void (*ds3231_data_ready_cb)(void);
 void ds3231_handler(ds3231_data_ready_cb callback);

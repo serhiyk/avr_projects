@@ -5,6 +5,7 @@
 #include "DS3231.h"
 #include "UART.h"
 #include "SPI.h"
+#include "TWI.h"
 #include "timer.h"
 #include <stdint.h>
 #include "serial.h"
@@ -25,8 +26,8 @@
 #define LED_CONTROL_DDR DDRB
 #define LED_CONTROL_PIN PB1
 
-#define ILLUMINANCE_ON_VALUE 200
-#define ILLUMINANCE_OFF_VALUE 100
+#define ILLUMINANCE_ON_VALUE 150
+#define ILLUMINANCE_OFF_VALUE 250
 
 static uint8_t idle_counter=0;
 
@@ -91,13 +92,14 @@ void setup(void)
 {
     LED_CONTROL_DDR |= 1 << LED_CONTROL_PIN;
     LED_CONTROL_PORT &= ~(1 << LED_CONTROL_PIN);
+    twi_init();
     spi_master_init();
     serial_init();
+    timer_init();
+    asm("sei");
 #ifdef RTC_ENABLED
     ds3231_init();
 #endif
-    timer_init();
-    asm("sei");
     //_delay_ms(5);
 #ifdef DISPLAY_ENABLED
     display_init();

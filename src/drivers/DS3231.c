@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/eeprom.h>
 #include "TWI.h"
 #include "serial.h"
 #include "DS3231.h"
@@ -28,8 +29,11 @@
 
 #define DS3231_ADDRESS 0xD0
 
-static uint8_t ds3231_buf[19];
+#define DST_EEPROM_ADDRESS 1
 
+static uint8_t tmp_buf[2];
+static uint8_t ds3231_buf[19];
+static uint8_t dst_flag;
 volatile uint8_t rtc_int_flag=1;
 volatile uint8_t clear_alarm_flag=0;
 volatile uint8_t data_ready_flag=0;
@@ -110,7 +114,12 @@ uint8_t get_date_bcd(void)
 
 uint8_t get_month(void)
 {
-    return (bcd_to_dec(ds3231_buf[DS3231_REG_MONTH_CENTURY] & 0b01111111)) ;
+    return (bcd_to_dec(ds3231_buf[DS3231_REG_MONTH_CENTURY] & 0b01111111));
+}
+
+uint8_t get_month_bcd(void)
+{
+    return ds3231_buf[DS3231_REG_MONTH_CENTURY] & 0b01111111;
 }
 
 uint8_t get_year(void)
@@ -183,13 +192,185 @@ void command_set_time(uint8_t *cmd, uint8_t len)
                  (cmd[13] << 4) | cmd[14]);
 }
 
+static inline void correct_dst(void)
+{
+    // TODO: correct date
+    uint8_t month = get_month_bcd();
+    uint8_t dow = get_dow();
+    uint8_t date = get_date();
+    uint8_t hour = get_hour();
+    if (dst_flag == 0) // Winter time
+    {
+        if (month < 0x03 || month > 0x10) // it is Winter
+        {
+            return;
+        }
+        if (month == 0x03) // March
+        {
+            if (23 + dow >= date) // before last Sunday
+            {
+                return;
+            }
+            if (dow == 1 && hour < 3) // Sunday before 3
+            {
+                return;
+            }
+        }
+        else if (month == 0x10) // October
+        {
+            if (23 + dow < date) // last Sunday or later
+            {
+                if (dow == 1) // Sunday
+                {
+                    if (hour >= 3) // after 3
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    return;
+                }
+            }
+        }
+        if (hour < 23)
+        {
+            hour++;
+        }
+        else
+        {
+            hour = 0;
+        }
+        dst_flag = 1;
+    }
+    else if (dst_flag == 1) // Summer time
+    {
+        if (month > 0x03 && month < 0x10) // it is Summer
+        {
+            return;
+        }
+        if (month == 0x10) // October
+        {
+            if (23 + dow >= date) // before last Sunday
+            {
+                return;
+            }
+            if (dow == 1 && hour <= 3) // Sunday before 3
+            {
+                return;
+            }
+        }
+        else if (month == 0x03) // March
+        {
+            if (23 + dow < date) // last Sunday or later
+            {
+                if (dow == 1) // Sunday
+                {
+                    if (hour > 3) // after 4
+                    {
+                        return;
+                    }
+                }
+                else
+                {
+                    return;
+                }
+            }
+        }
+        if (hour > 0)
+        {
+            hour--;
+        }
+        else
+        {
+            hour = 23;
+        }
+        dst_flag = 0;
+    }
+    else // init state
+    {
+        if (month < 0x03 || month > 0x10 || (month == 0x03 && (23 + dow >= date)) || (month == 0x10 && (23 + dow < date)))
+        {
+            dst_flag = 0;
+        }
+        else
+        {
+            dst_flag = 1;
+        }
+    }
+    tmp_buf[0] = DS3231_REG_HOURS;
+    tmp_buf[1] = dec_to_bcd(hour);
+    twi_master_send(DS3231_ADDRESS, tmp_buf, 2, 0);
+    eeprom_write_byte((uint8_t*) DST_EEPROM_ADDRESS, dst_flag);
+}
+
+static inline void check_dst(void)
+{
+    uint8_t month = get_month_bcd();
+    uint8_t dow = get_dow();
+    uint8_t date = get_date_bcd();
+    uint8_t hour = get_hour_bcd();
+    if (dst_flag == 0) // Winter time
+    {
+        if (month == 0x03) // March
+        {
+            if (dow == 1) // Sunday
+            {
+                if (date > 0x24) // last Sunday
+                {
+                    if (hour == 0x03)
+                    {
+                        tmp_buf[0] = DS3231_REG_HOURS;
+                        tmp_buf[1] = 4;
+                        if (twi_master_send(DS3231_ADDRESS, tmp_buf, 2, 0) != 0)
+                        {
+                            return;
+                        }
+                        dst_flag = 1;
+                        eeprom_write_byte((uint8_t*) DST_EEPROM_ADDRESS, dst_flag);
+                    }
+                }
+            }
+        }
+    }
+    else // Summer time
+    {
+        if (month == 0x10) // October
+        {
+            if (dow == 1) // Sunday
+            {
+                if (date > 0x24) // last Sunday
+                {
+                    if (hour == 0x04)
+                    {
+                        tmp_buf[0] = DS3231_REG_HOURS;
+                        tmp_buf[1] = 3;
+                        if (twi_master_send(DS3231_ADDRESS, tmp_buf, 2, 0) != 0)
+                        {
+                            return;
+                        }
+                        dst_flag = 0;
+                        eeprom_write_byte((uint8_t*) DST_EEPROM_ADDRESS, dst_flag);
+                    }
+                }
+            }
+        }
+    }
+}
+
 void ds3231_init(void)
 {
-    twi_init();
-
+    while (!twi_ready());
+    tmp_buf[0] = DS3231_REG_SECONDS;
+    if (twi_master_transfer(DS3231_ADDRESS, tmp_buf, ds3231_buf, 1, 18, data_ready_cb) != 0)
+    {
+        return;
+    }
+    while (data_ready_flag == 0);
+    dst_flag = eeprom_read_byte((uint8_t*) DST_EEPROM_ADDRESS);
+    correct_dst();
     EICRA |= 1 << ISC01; // The falling edge of INT0 generates an interrupt request
     EIMSK |= 1 << INT0; // External Interrupt Request 0 Enable
-
     serial_register_command(COMMAND_ID_SET_TIME, command_set_time);
 }
 
@@ -198,33 +379,38 @@ SIGNAL(INT0_vect)
     rtc_int_flag = 1;
 }
 
+void ds3231_read(void)
+{
+    rtc_int_flag = 1;
+}
+
 void ds3231_handler(ds3231_data_ready_cb callback)
 {
+    if (!twi_ready())
+    {
+        return;
+    }
     if (rtc_int_flag)
     {
-        if (twi_ready())
+        tmp_buf[0] = DS3231_REG_CONTROL_STATUS;
+        tmp_buf[1] = 0x00;
+        if (twi_master_send(DS3231_ADDRESS, tmp_buf, 1, clear_alarm_cb) == 0)
         {
-            static uint8_t clear_alarm_buf[] = {DS3231_REG_CONTROL_STATUS, 0x00};
-            if (twi_master_send(DS3231_ADDRESS, clear_alarm_buf, sizeof(clear_alarm_buf), clear_alarm_cb) == 0)
-            {
-                rtc_int_flag = 0;
-            }
+            rtc_int_flag = 0;
         }
     }
-    if (clear_alarm_flag)
+    else if (clear_alarm_flag)
     {
-        if (twi_ready())
+        tmp_buf[0] = DS3231_REG_SECONDS;
+        if (twi_master_transfer(DS3231_ADDRESS, tmp_buf, ds3231_buf, 1, 18, data_ready_cb) == 0)
         {
-            static uint8_t read_rtc_buf[] = {DS3231_REG_SECONDS};
-            if (twi_master_transfer(DS3231_ADDRESS, read_rtc_buf, ds3231_buf, sizeof(read_rtc_buf), 18, data_ready_cb) == 0)
-            {
-                clear_alarm_flag = 0;
-            }
+            clear_alarm_flag = 0;
         }
     }
-    if (data_ready_flag)
+    else if (data_ready_flag)
     {
         data_ready_flag = 0;
+        check_dst();
         if (callback)
         {
             callback();
