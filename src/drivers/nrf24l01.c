@@ -72,9 +72,9 @@
 #endif
 
 #if defined(CONFIG_NRF_ENABLE_RX)
-    #define NRF_CONFIG_DEFAULT ((0<<MASK_RX_DR)|(0<<MASK_TX_DS)|(0<<MASK_MAX_RT)|(1<<EN_CRC)|(0<<CRCO)|(1<<PWR_UP))
+    #define NRF_CONFIG_DEFAULT ((0<<MASK_RX_DR)|(0<<MASK_TX_DS)|(0<<MASK_MAX_RT)|(1<<EN_CRC)|(1<<CRCO)|(1<<PWR_UP))
 #else
-    #define NRF_CONFIG_DEFAULT ((1<<MASK_RX_DR)|(0<<MASK_TX_DS)|(0<<MASK_MAX_RT)|(1<<EN_CRC)|(0<<CRCO)|(1<<PWR_UP))
+    #define NRF_CONFIG_DEFAULT ((1<<MASK_RX_DR)|(0<<MASK_TX_DS)|(0<<MASK_MAX_RT)|(1<<EN_CRC)|(1<<CRCO)|(1<<PWR_UP))
 #endif
 
 #define NRF_CONFIG_RX (NRF_CONFIG_DEFAULT|(1<<PRIM_RX))
