@@ -394,7 +394,7 @@ void ds3231_handler(ds3231_data_ready_cb callback)
     {
         tmp_buf[0] = DS3231_REG_CONTROL_STATUS;
         tmp_buf[1] = 0x00;
-        if (twi_master_send(DS3231_ADDRESS, tmp_buf, 1, clear_alarm_cb) == 0)
+        if (twi_master_send(DS3231_ADDRESS, tmp_buf, 2, clear_alarm_cb) == 0)
         {
             rtc_int_flag = 0;
         }
