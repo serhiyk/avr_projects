@@ -11,8 +11,6 @@
 #include "UART.h"
 #include "DS3231.h"
 #include "timer.h"
-#include "sensors.h"
-#include "ds18b20.h"
 #include "display.h"
 
 #define DISPLAY_TIMER_ID 0
@@ -199,7 +197,8 @@ void print_bottom_date(void)
     date &= 0x0F;
     uint8_t mon = get_month() - 1;
     uint8_t width = _months_width(mon) + 6;
-    if (date_h > 0) {
+    if (date_h > 0)
+    {
         width += 6;
     }
     uint8_t shift = DISPLAY_BOTTOM_2_SHIFT + (48 - width)/2;
@@ -227,10 +226,6 @@ void print_bottom_date(void)
             }
         }
         shift += 5 + 1;
-    }
-    else
-    {
-        shift += 3;
     }
 
     col = shift >> 3;
@@ -278,74 +273,73 @@ void print_bottom_date(void)
 
 void print_bottom_temperature(void)
 {
-    uint8_t temp_h, temp_l, temp_f;
-    uint16_t ext_temp = sensors_get_temperature();
-    if (ext_temp == DS18B20_INVALID_TEMPERATURE)
-    {
-        for (uint8_t i=0; i<7; i++)
-        {
-            display_bottom_buf[i][16] = 0;
-            display_bottom_buf[i][17] = 0;
-            display_bottom_buf[i][18] = 0;
-        }
-    }
-    else
-    {
-        if (ext_temp & 0x0800)
-        {
-            ext_temp = ~ext_temp;
-            ext_temp++;
-            ext_temp |= 0x0800;
-        }
-        temp_l = ext_temp >> 4;
-        temp_h = temp_l / 10;
-        temp_l %= 10;
-        temp_f = ext_temp & 0x0F;
-        temp_f *= 10;
-        temp_f /= 16;
-        if (ext_temp & 0x0800)
-        {
-            for (uint8_t i=0; i<7; i++)
-            {
-                display_bottom_buf[i][16] = dDigital7table(temp_h, i) >> 4;
-                display_bottom_buf[i][17] = (dDigital7table(temp_h, i) << 4) | (dDigital7table(temp_l, i) >> 2);
-                display_bottom_buf[i][18] = dDigital7table(temp_f, i) >> 2;
-            }
-            display_bottom_buf[3][16] |= 0xE0;
-            display_bottom_buf[6][18] |= 0x80;
-            display_bottom_buf[0][19] |= 0x60;
-            display_bottom_buf[1][19] |= 0x90;
-            display_bottom_buf[2][19] |= 0x90;
-            display_bottom_buf[3][19] |= 0x60;
-        }
-        else
-        {
-            for (uint8_t i=0; i<7; i++)
-            {
-                display_bottom_buf[i][16] = dDigital7table(temp_h, i) | (dDigital7table(temp_l, i) >> 6);
-                display_bottom_buf[i][17] = (dDigital7table(temp_l, i) << 2) | (dDigital7table(temp_f, i) >> 6);
-                display_bottom_buf[i][18] = dDigital7table(temp_f, i) << 2;
-            }
-            display_bottom_buf[6][17] |= 0x08;
-            display_bottom_buf[0][18] |= 0x06;
-            display_bottom_buf[1][18] |= 0x09;
-            display_bottom_buf[2][18] |= 0x09;
-            display_bottom_buf[3][18] |= 0x06;
-        }
-    }
-
+    uint8_t temp_h, temp_l;
     temp_l = get_temperature();
     temp_h=temp_l / 10;
     temp_l %= 10;
     for (uint8_t i=0; i<7; i++)
     {
-        display_bottom_buf[i][20] = dDigital7table(temp_h, i) | (dDigital7table(temp_l, i) >> 6);
-        display_bottom_buf[i][21] = (dDigital7table(temp_l, i) << 2);
+        display_bottom_buf[i][16] = dDigital7table(temp_h, i) | (dDigital7table(temp_l, i) >> 6);
+        display_bottom_buf[i][17] = (dDigital7table(temp_l, i) << 2);
+    }
+    display_bottom_buf[0][17] |= 0x06;
+    display_bottom_buf[3][17] |= 0x06;
+    display_bottom_buf[1][17] |= 0x09;
+    display_bottom_buf[2][17] |= 0x09;
+}
+
+void print_ext_temperature(int16_t temperature)
+{
+    uint8_t temp_h, temp_l, temp_f, sign=0;
+    if (temperature < 0)
+    {
+        temperature *= -1;
+        sign = 1;
+    }
+    temp_l = temperature >> 4;
+    temp_h = temp_l / 10;
+    temp_l %= 10;
+    temp_f = temperature & 0x0F;
+    temp_f *= 10;
+    temp_f /= 16;
+    for (uint8_t i=0; i<7; i++)
+    {
+        display_bottom_buf[i][19] = dDigital7table(temp_l, i) >> 6;
+        display_bottom_buf[i][20] = (dDigital7table(temp_l, i) << 2) | (dDigital7table(temp_f, i) >> 6);
+        display_bottom_buf[i][21] = dDigital7table(temp_f, i) << 2;
+    }
+    display_bottom_buf[3][18] = 0;
+    display_bottom_buf[6][20] |= 0x08;
+    if (temp_h > 0)
+    {
+        for (uint8_t i=0; i<7; i++)
+        {
+            display_bottom_buf[i][19] |= dDigital7table(temp_h, i);
+        }
+        if (sign)
+        {
+            display_bottom_buf[3][18] = 0x0E;
+        }
+    }
+    else if (sign)
+    {
+        display_bottom_buf[3][19] |= 0x38;
     }
     display_bottom_buf[0][21] |= 0x06;
+    display_bottom_buf[3][21] |= 0x06;
     display_bottom_buf[1][21] |= 0x09;
     display_bottom_buf[2][21] |= 0x09;
-    display_bottom_buf[3][21] |= 0x06;
+}
+
+void clear_ext_temperature(void)
+{
+    for (uint8_t i=0; i<7; i++)
+    {
+        display_bottom_buf[i][19] = 0;
+        display_bottom_buf[i][20] = 0;
+        display_bottom_buf[i][21] = 0;
+    }
+    display_bottom_buf[3][18] = 0;
 }
 
 void print_bottom_illumination(void)
@@ -389,13 +383,13 @@ void print_bottom_illumination(void)
 
 void display_clear_buf(void)
 {
-    for(uint8_t i=0; i<24; i++)
+    for(uint8_t i=0; i<32; i++)
         for(uint8_t j=0; j<6; j++)
             display_buf[i][j] = 0;
 
-    for(uint8_t i=24; i<32; i++)
-        for(uint8_t j=0; j<32; j++)
-            display_buf[i][j] = 0;
+    // for(uint8_t i=24; i<32; i++)
+    //     for(uint8_t j=0; j<32; j++)
+    //         display_buf[i][j] = 0;
 }
 
 void max7219_load_row(uint8_t r, uint8_t *buf)
