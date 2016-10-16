@@ -1,6 +1,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include "config.h"
 #include "onewire.h"
 #include "ds18b20.h"
 
@@ -13,10 +14,14 @@
 
 static uint8_t state=DS18B20_READY;
 static ds18b20_cb ds18b20_callback;
-static uint16_t temperature;
+static uint16_t temperature=0;
 
 void _convert_t_cb(uint8_t data)
 {
+#ifdef PARASITE_POWER
+    ONEWIRE_PORT |= 1 << ONEWIRE_PIN;
+    ONEWIRE_DDR |= 1 << ONEWIRE_PIN;
+#endif
     state = DS18B20_READY;
 }
 

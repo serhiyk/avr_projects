@@ -19,8 +19,8 @@
     #error ONEWIRE_PIN is not defined
 #endif
 
-#define HIGH_PULL_UP_PERIOD (90*(F_CPU/1000000UL)/8)
-#define HIGH_PULL_DOWN_PERIOD (5*(F_CPU/1000000UL)/8)
+#define HIGH_PULL_UP_PERIOD (85*(F_CPU/1000000UL)/8)
+#define HIGH_PULL_DOWN_PERIOD (10*(F_CPU/1000000UL)/8)
 #define LOW_PULL_UP_PERIOD (15*(F_CPU/1000000UL)/8)
 #define LOW_PULL_DOWN_PERIOD (80*(F_CPU/1000000UL)/8)
 #define READ_PERIOD (10*(F_CPU/1000000UL)/8)
@@ -44,6 +44,7 @@ void onewire_init(void)
 void onewire_master_pull_down(onewire_cb callback)
 {
     ONEWIRE_DDR |= 1 << ONEWIRE_PIN;
+    ONEWIRE_PORT &= ~(1 << ONEWIRE_PIN);
     onewire_counter = 0;
     onewire_callback = callback;
     TCNT0 = 0;
@@ -55,6 +56,7 @@ void onewire_master_pull_down(onewire_cb callback)
 void onewire_master_pull_up(onewire_cb callback)
 {
     ONEWIRE_DDR &= ~(1 << ONEWIRE_PIN);
+    ONEWIRE_PORT &= ~(1 << ONEWIRE_PIN);
     onewire_counter = 0;
     onewire_data = 0;
     onewire_callback = callback;
@@ -67,6 +69,8 @@ void onewire_master_pull_up(onewire_cb callback)
 
 void onewire_master_write(uint8_t data, onewire_cb callback)
 {
+    ONEWIRE_DDR &= ~(1 << ONEWIRE_PIN);
+    ONEWIRE_PORT &= ~(1 << ONEWIRE_PIN);
     onewire_counter = 8;
     onewire_data = data;
     onewire_callback = callback;
@@ -78,6 +82,8 @@ void onewire_master_write(uint8_t data, onewire_cb callback)
 
 void onewire_master_read(onewire_cb callback)
 {
+    ONEWIRE_DDR &= ~(1 << ONEWIRE_PIN);
+    ONEWIRE_PORT &= ~(1 << ONEWIRE_PIN);
     onewire_counter = 8;
     onewire_data = 0xFF;
     onewire_callback = callback;
@@ -100,19 +106,7 @@ SIGNAL(TIMER0_COMPA_vect)
         }
         return;
     }
-    if (ONEWIRE_PORT_IN & (1 << ONEWIRE_PIN))
-    {
-        ONEWIRE_DDR |= 1 << ONEWIRE_PIN;
-        if (1 & onewire_data)
-        {
-            OCR0A = HIGH_PULL_DOWN_PERIOD;
-        }
-        else
-        {
-            OCR0A = LOW_PULL_DOWN_PERIOD;
-        }
-    }
-    else
+    if (ONEWIRE_DDR & (1 << ONEWIRE_PIN))
     {
         ONEWIRE_DDR &= ~(1 << ONEWIRE_PIN);
         if (1 & onewire_data)
@@ -125,6 +119,18 @@ SIGNAL(TIMER0_COMPA_vect)
         }
         onewire_counter--;
         onewire_data >>= 1;
+    }
+    else
+    {
+        ONEWIRE_DDR |= 1 << ONEWIRE_PIN;
+        if (1 & onewire_data)
+        {
+            OCR0A = HIGH_PULL_DOWN_PERIOD;
+        }
+        else
+        {
+            OCR0A = LOW_PULL_DOWN_PERIOD;
+        }
     }
 }
 
