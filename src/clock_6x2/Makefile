@@ -96,7 +96,8 @@ SRC = $(TARGET).c \
 	text.c \
 	nrf24l01.c \
 	sensors.c \
-	max7219.c
+	max7219.c \
+	bmp180.c
 
 
 # List C++ source files here. (C dependencies are automatically generated.)

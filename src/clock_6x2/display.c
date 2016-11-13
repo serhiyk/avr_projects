@@ -342,43 +342,24 @@ void clear_ext_temperature(void)
     display_bottom_buf[3][18] = 0;
 }
 
-void print_bottom_illumination(void)
+void print_pressure(int32_t pressure)
 {
-    uint16_t illumination = ADC;
-
-    if(illumination > 999)
+    pressure *= 10;
+    pressure /= 133;
+    uint8_t p1 = pressure / 1000;
+    pressure -= (uint16_t)p1 * 1000;
+    uint8_t p2 = pressure / 100;
+    pressure -= (uint16_t)p2 * 100;
+    uint8_t p3 = pressure / 10;
+    uint8_t p4 = (uint8_t)pressure - p3 * 10;
+    for (uint8_t i=0; i<7; i++)
     {
-        for (uint8_t j=0; j<7; j++)
-        {
-            display_bottom_buf[j][25] = dDigital7table(1, j);
-        }
-        illumination -= 1000;
+        display_bottom_buf[i][25] = dDigital7table(p1, i) >> 4;
+        display_bottom_buf[i][26] = (dDigital7table(p1, i) << 4) | (dDigital7table(p2, i) >> 2);
+        display_bottom_buf[i][27] = dDigital7table(p3, i);
+        display_bottom_buf[i][28] = dDigital7table(p4, i);
     }
-    else
-    {
-        for (uint8_t j=0; j<7; j++)
-        {
-            display_bottom_buf[j][25] = 0;
-        }
-    }
-    uint8_t t = illumination / 100;
-    for (uint8_t j=0; j<7; j++)
-    {
-        display_bottom_buf[j][25] |= (dDigital7table(t, j) >> 6);
-        display_bottom_buf[j][26] = (dDigital7table(t, j) << 2);
-    }
-    illumination -= (uint16_t)t * 100;
-    t = (uint8_t)illumination / 10;
-    for (uint8_t j=0; j<7; j++)
-    {
-        display_bottom_buf[j][26] |= (dDigital7table(t, j) >> 5);
-        display_bottom_buf[j][27] = (dDigital7table(t, j) << 3);
-    }
-    t = (uint8_t)illumination - t * 10;
-    for (uint8_t j=0; j<7; j++)
-    {
-        display_bottom_buf[j][27] |= (dDigital7table(t, j) >> 3);
-    }
+    display_bottom_buf[6][27] |= 0x02;
 }
 
 void display_clear_buf(void)
@@ -532,7 +513,6 @@ void time_update_handler(void)
             print_bottom_temperature();
         }
         print_top_time();
-        print_bottom_illumination();
         max7219_update();
     }
     else if(display_state == DISPLAY_STATE_ACTIVATING)

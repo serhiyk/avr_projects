@@ -9,5 +9,6 @@ void display_deactivate(void);
 void time_update_handler(void);
 void print_ext_temperature(int16_t temperature);
 void clear_ext_temperature(void);
+void print_pressure(int32_t pressure);
 
 #endif	/* DISPLAY_H */

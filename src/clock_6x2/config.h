@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 /* Timer config */
-#define TIMER_NUMBER 3
+#define TIMER_NUMBER 4
 
 /* nRF24L01 config */
 // The RF channel frequency: F = 2400 + CONFIG_NRF_CHANNEL [MHz] (0 - 125)
@@ -32,5 +32,9 @@
 #define MAX7219_CS_PORT PORTB
 #define MAX7219_CS_DDR DDRB
 #define MAX7219_CS_PIN PB2
+
+/* BMP180 config */
+#define BMP180_TIMER_ID 3
+#define BMP180_READ_PERIOD_S 20
 
 #endif  /* CONFIG_H */

@@ -3,6 +3,7 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include "DS3231.h"
+#include "bmp180.h"
 #include "UART.h"
 #include "SPI.h"
 #include "TWI.h"
@@ -100,6 +101,7 @@ void setup(void)
 #ifdef RTC_ENABLED
     ds3231_init();
 #endif
+    bmp180_init(0, print_pressure);
     //_delay_ms(5);
 #ifdef DISPLAY_ENABLED
     display_init();
@@ -138,6 +140,7 @@ int main(void)
 #endif
         serial_handler();
         nrf24_handler();
+        bmp180_handler();
         timer_handler();
     }
 }
