@@ -4,7 +4,8 @@ import time
 import datetime
 import serial
 
-COMMAND_ID_SET_TIME = '1'
+SERIAL_COMMAND_START = '0'
+COMMAND_ID_SET_TIME = '\x00'
 SERIAL_COMMAND_END = ' '
 
 
@@ -29,7 +30,7 @@ def set_time(year, month, day, hour, minute, second):
     if week_day == 8:
         week_day = 1
     cur_time = '{:02d}{:02d}{:02d}{:02d}{:02d}{:02d}{:02d}'.format(second, minute, hour, week_day, day, month, year)
-    data = COMMAND_ID_SET_TIME + cur_time + SERIAL_COMMAND_END
+    data = SERIAL_COMMAND_START + COMMAND_ID_SET_TIME + cur_time + SERIAL_COMMAND_END
     serial_send(data)
 
 

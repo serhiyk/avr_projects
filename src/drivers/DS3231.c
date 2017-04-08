@@ -5,7 +5,7 @@
 #include "serial.h"
 #include "DS3231.h"
 
-#define COMMAND_ID_SET_TIME 1
+#define COMMAND_ID_SET_TIME 0
 
 #define DS3231_REG_SECONDS 0x00
 #define DS3231_REG_MINUTES 0x01

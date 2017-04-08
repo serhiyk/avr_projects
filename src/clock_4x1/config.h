@@ -19,4 +19,7 @@
 /* ds18b20 */
 #define PARASITE_POWER
 
+/* serial config */
+#define SERIAL_COMMAND_COUNT 1
+
 #endif  /* CONFIG_H */

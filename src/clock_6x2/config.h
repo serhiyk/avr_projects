@@ -37,4 +37,7 @@
 #define BMP180_TIMER_ID 3
 #define BMP180_READ_PERIOD_S 20
 
+/* serial config */
+#define SERIAL_COMMAND_COUNT 1
+
 #endif  /* CONFIG_H */
