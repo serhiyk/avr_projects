@@ -14,7 +14,7 @@
 #include "max7219.h"
 #include "sensors.h"
 
-// #define MOTION_SENSOR_ENABLED
+#define MOTION_SENSOR_ENABLED
 #define RTC_ENABLED
 #define DISPLAY_ENABLED
 

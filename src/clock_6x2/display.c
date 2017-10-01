@@ -488,7 +488,7 @@ void display_deactivate(void)
     display_clear_buf();
     display_row_shift = 16;
     display_col_shift = 0;
-    max7219_update();
+    max7219_update_with_config();
     timer_stop(DISPLAY_TIMER_ID);
 }
 

@@ -35,6 +35,12 @@
 #define MAX7219_REG_SHUTDOWN 0x0C
 #define MAX7219_REG_DISPLAY_TEST 0x0F
 
+#define MAX7219_REG_DECODE_MODE_VALUE 0x00  // using an led matrix (not digits)
+#define MAX7219_REG_INTENSITY_VALUE 0x01    // the first 0x0f is the value you can set range: 0x00 to 0x0f
+#define MAX7219_REG_SCAN_LIMIT_VALUE 0x07
+#define MAX7219_REG_SHUTDOWN_VALUE 0x01     // not in shutdown mode
+#define MAX7219_REG_DISPLAY_TEST_VALUE 0x00 // no display test
+
 static uint8_t spi_buf[MAX7219_NUMBER*2];
 static uint8_t max7219_row;
 
@@ -49,23 +55,27 @@ static void max7219_cs_cb(void)
 static void max7219_send_all(uint8_t reg, uint8_t data)
 {
     uint8_t *buf=spi_buf;
-    for(uint8_t i=0; i<MAX7219_NUMBER; i++)
+    for (uint8_t i=0; i<MAX7219_NUMBER; i++)
     {
         *buf++ = reg;
         *buf++ = data;
     }
     spi_master_send(spi_buf, MAX7219_NUMBER*2, max7219_cs_cb);
-    while (!spi_ready());
 }
 
 void max7219_init(void)
 {
     MAX7219_CS_DDR |= 1 << MAX7219_CS_PIN;
-    max7219_send_all(MAX7219_REG_SCAN_LIMIT, 0x07);
-    max7219_send_all(MAX7219_REG_DECODE_MODE, 0x00);        // using an led matrix (not digits)
-    max7219_send_all(MAX7219_REG_SHUTDOWN, 0x01);           // not in shutdown mode
-    max7219_send_all(MAX7219_REG_DISPLAY_TEST, 0x00);       // no display test
-    max7219_send_all(MAX7219_REG_INTENSITY, 0x0f & 0x01);   // the first 0x0f is the value you can set range: 0x00 to 0x0f
+    max7219_send_all(MAX7219_REG_SCAN_LIMIT, MAX7219_REG_SCAN_LIMIT_VALUE);
+    while (!spi_ready());
+    max7219_send_all(MAX7219_REG_DECODE_MODE, MAX7219_REG_DECODE_MODE_VALUE);
+    while (!spi_ready());
+    max7219_send_all(MAX7219_REG_SHUTDOWN, MAX7219_REG_SHUTDOWN_VALUE);
+    while (!spi_ready());
+    max7219_send_all(MAX7219_REG_DISPLAY_TEST, MAX7219_REG_DISPLAY_TEST_VALUE);
+    while (!spi_ready());
+    max7219_send_all(MAX7219_REG_INTENSITY, 0x0f & MAX7219_REG_INTENSITY_VALUE);
+    while (!spi_ready());
 }
 
 void max7219_update(void)
@@ -73,15 +83,50 @@ void max7219_update(void)
     max7219_row = MAX7219_ROWS;
 }
 
+void max7219_update_with_config(void)
+{
+    max7219_row = MAX7219_REG_DISPLAY_TEST + 1;
+}
+
 void max7219_handler(void)
 {
-    if(max7219_row)
+    if (max7219_row == 0)
     {
-        if (spi_ready())
+        return;
+    }
+    if (!spi_ready())
+    {
+        return;
+    }
+    max7219_row--;
+    if (max7219_row < MAX7219_ROWS)
+    {
+        max7219_load_row(max7219_row, spi_buf);
+        spi_master_send(spi_buf, MAX7219_NUMBER*2, max7219_cs_cb);
+    }
+    else
+    {
+        uint8_t data;
+        switch (max7219_row)
         {
-            max7219_row--;
-            max7219_load_row(max7219_row, spi_buf);
-            spi_master_send(spi_buf, MAX7219_NUMBER*2, max7219_cs_cb);
+            case MAX7219_REG_SCAN_LIMIT:
+                data = MAX7219_REG_SCAN_LIMIT_VALUE;
+                break;
+            case MAX7219_REG_DECODE_MODE:
+                data = MAX7219_REG_DECODE_MODE_VALUE;
+                break;
+            case MAX7219_REG_SHUTDOWN:
+                data = MAX7219_REG_SHUTDOWN_VALUE;
+                break;
+            case MAX7219_REG_DISPLAY_TEST:
+                data = MAX7219_REG_DISPLAY_TEST_VALUE;
+                break;
+            case MAX7219_REG_INTENSITY:
+                data = MAX7219_REG_INTENSITY_VALUE;
+                break;
+            default:
+                return;
         }
+        max7219_send_all(max7219_row, data);
     }
 }
