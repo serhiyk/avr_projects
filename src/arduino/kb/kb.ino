@@ -15,6 +15,18 @@ uint8_t HexToBin(uint8_t tmp1, uint8_t tmp0)
   return tmp0;
 }
 
+char get_mouse_button(uint8_t param)
+{
+  if (param == 'r')
+  {
+    return MOUSE_RIGHT;
+  }
+  else
+  {
+    return MOUSE_LEFT;
+  }
+}
+
 void move(int16_t x, int16_t y)
 {
   bool sx = x < 0;
@@ -102,9 +114,9 @@ void loop()
            case 'w': Keyboard.write(HexToBin(incomingBuf[1], incomingBuf[2])); break;  //This is similar to pressing and releasing a key on your keyboard.
            case 'p': Keyboard.press(HexToBin(incomingBuf[1], incomingBuf[2])); break;
            case 'r': Keyboard.release(HexToBin(incomingBuf[1], incomingBuf[2])); break;
-           case 'm': Mouse.move(HexToBin(incomingBuf[1], incomingBuf[2]), HexToBin(incomingBuf[3], incomingBuf[4]), 0); break;  // Moves the cursor on a connected computer.
-           case 'c': Mouse.click(); break; //Sends a momentary click to the computer at the location of the cursor.
-           case 'd': Mouse.click(); Mouse.click();break;
+           case 'C': Mouse.click(get_mouse_button(incomingBuf[1])); break; //Sends a momentary click to the computer at the location of the cursor.
+           case 'P': Mouse.press(get_mouse_button(incomingBuf[1])); break;
+           case 'R': Mouse.release(get_mouse_button(incomingBuf[1])); break;
            case 'M':
            {
              int16_t _x = (HexToBin(incomingBuf[1], incomingBuf[2]) << 8) | HexToBin(incomingBuf[3], incomingBuf[4]);

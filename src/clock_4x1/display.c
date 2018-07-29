@@ -48,6 +48,43 @@ static void print_time(void)
     }
 }
 
+#if 0
+static void print_time(void)
+{
+    uint8_t h = get_hour_bcd();
+    uint8_t h_h = h >> 4;
+    h &= 0x0F;
+    uint8_t m = get_minute_bcd();
+    uint8_t m_h = m >> 4;
+    m &= 0x0F;
+    uint8_t s = get_second_bcd();
+
+    if(h_h == 0)
+    {
+        for (uint8_t i=0; i<7; i++)
+        {
+            display_buf[i][0] = 0;
+        }
+    }
+    else
+    {
+        for (uint8_t i=0; i<7; i++)
+        {
+            display_buf[i][0] = dDigital7table(h_h, i);
+        }
+    }
+
+    for (uint8_t i=0; i<7; i++)
+    {
+        display_buf[i][0] |= dDigital7table(h, i) >> 6;
+        display_buf[i][1] = (dDigital7table(h, i) << 2) | (dDigital7table(m_h, i) >> 5);
+        display_buf[i][2] = (dDigital7table(m_h, i) << 3) | (dDigital7table(m, i) >> 3);
+    }
+
+    display_buf[7][1] ^= 0x10;
+}
+#endif
+
 void print_ext_temperature(int16_t temperature)
 {
     uint8_t temp_h, temp_l, temp_f, sign=0;
@@ -109,7 +146,7 @@ void display_init(void)
 
 void max7219_load_row(uint8_t r, uint8_t *buf)
 {
-    for(uint8_t m=0; m<MAX7219_NUMBER; m++)
+    for(int8_t m=MAX7219_NUMBER-1; m>=0; m--)
     {
         *buf++ = r + 1;
         *buf++ = display_buf[r][m];
