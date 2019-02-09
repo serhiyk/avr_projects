@@ -1,8 +1,7 @@
 #include <USBComposite.h>
-//#include <Keyboard.h>
-//#include <Mouse.h>
 
 USBHID HID;
+USBCompositeSerial CompositeSerial;
 HIDKeyboard Keyboard(HID);
 HIDMouse Mouse(HID);
 
@@ -96,23 +95,19 @@ void move(int16_t x, int16_t y)
 
 void setup()
 {
-  Serial1.begin(57600);
-  Serial.begin(57600);
-  USBComposite.setProductId(0x27db);
-  USBComposite.setVendorId(0x16c0);
-  HID.begin(HID_KEYBOARD_MOUSE);
-  Keyboard.begin(); // useful to detect host capslock state and LEDs
-  Mouse.begin();
+  USBComposite.setProductId(0x1602);
+  USBComposite.setVendorId(0x04d9);
+  HID.begin(CompositeSerial, HID_KEYBOARD_MOUSE);
   delay(1000);
 }
 
 void loop()
 {
-   while (Serial.available())
+   while (CompositeSerial.available())
    {
-     if (Serial.available() > 0)
+     if (CompositeSerial.available() > 0)
      {
-       incomingByte = Serial.read();
+       incomingByte = CompositeSerial.read();
        if(incomingByte == 1)
        {
          incomingIndex = 0;
@@ -135,9 +130,9 @@ void loop()
              break;
            }
          }
-         Serial.write((byte)0x01);
-         Serial.write(incomingBuf, incomingIndex);
-         Serial.write((byte)0x00);
+         CompositeSerial.write((byte)0x01);
+         CompositeSerial.write(incomingBuf, incomingIndex);
+         CompositeSerial.write((byte)0x00);
          incomingBuf[0] = 0;
        }
        else if(incomingIndex < INCOMING_BUF_SIZE)
