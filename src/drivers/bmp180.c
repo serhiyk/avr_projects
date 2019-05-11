@@ -129,7 +129,7 @@ static void calculate_temperature(void)
     x2 <<= 11;
     x2 /= x1 + bmp_md;
     bmp_b5 = x1 + x2;
-    int16_t t = ((bmp_b5 + 8) >> 4);
+    int16_t t = ((bmp_b5 + 8) >> 4);  // temp in 0.1
     if (temperature_cb)
     {
         temperature_cb(t);
