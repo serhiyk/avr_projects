@@ -18,7 +18,8 @@
 #define SECOND_TIMER_ID 0
 #define SECOND_TIMER_PERIOD 10  // 1 second
 
-#define DUSK_VOLTAGE (20)  // 2.0V
+#define VOLTAGE (36)  // 3.6V
+#define DUSK_VOLTAGE (12)  // 1.2V
 #define DAWN_VOLTAGE (40)  // 4.0V
 #define LAMP_ON_TIMEOUT (2*60*60)
 
@@ -42,7 +43,7 @@ uint8_t adc_read(void)
     while ((ADCSRA & (1 << ADSC)));
 
     uint32_t vin = ADCW;
-    vin *= 50;
+    vin *= VOLTAGE;
     vin /= (1024 / 2);
     return vin;
 }
