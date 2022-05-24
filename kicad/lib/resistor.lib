@@ -1,0 +1,37 @@
+EESchema-LIBRARY Version 2.3  Date: нд, 05-лют-2012 17:56:16 +0200
+#encoding utf-8
+#
+# P
+#
+DEF P R 0 0 N Y 1 F N
+F0 "R" 80 0 50 V V C CNN
+F1 "P" 0 0 50 V V C CNN
+$FPLIST
+ R_*
+$ENDFPLIST
+DRAW
+S -40 150 40 -150 0 1 12 N
+P 2 0 1 0  -50 0  -100 -50 N
+P 2 0 1 0  -50 0  -100 50 N
+X ~ 1 0 250 100 D 60 60 1 1 P
+X ~ 2 0 -250 100 U 60 60 1 1 P
+X ~ 3 -200 0 150 R 50 50 1 1 I
+ENDDRAW
+ENDDEF
+#
+# R
+#
+DEF R R 0 0 N Y 1 F N
+F0 "R" 80 0 50 V V C CNN
+F1 "R" 0 0 50 V V C CNN
+$FPLIST
+ R_*
+$ENDFPLIST
+DRAW
+S -40 150 40 -150 0 1 12 N
+X ~ 1 0 250 100 D 60 60 1 1 P
+X ~ 2 0 -250 100 U 60 60 1 1 P
+ENDDRAW
+ENDDEF
+#
+#End Library
