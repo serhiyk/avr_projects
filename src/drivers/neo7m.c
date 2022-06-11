@@ -97,6 +97,7 @@ static inline uint8_t _correct_summer_time(void)
             return 0;
         }
     }
+    return 0;
 }
 
 static void _correct_time_zone(void)
@@ -160,7 +161,7 @@ inline uint8_t _read_bcd(uint8_t **buf)
     return **buf - '0';
 }
 
-static void _packet_parser(void)
+static void _packet_parser1(void)
 {
     if (_buf[2] == 'Z' &&
         _buf[3] == 'D' &&
@@ -216,6 +217,75 @@ static void _packet_parser(void)
     }
 }
 
+// $GPRMC,124123.00,V,,,,,,,160521,,,N*7B
+static void _packet_parser(void)
+{
+    if (_buf[2] == 'R' &&
+        _buf[3] == 'M' &&
+        _buf[4] == 'C')
+    {
+        uint8_t *_tmp_buf = _buf;
+        if (_goto_next_field(&_tmp_buf))
+        {
+            return;
+        }
+        hour_bcd_h = _read_bcd(&_tmp_buf);
+        hour_bcd_l = _read_bcd(&_tmp_buf);
+        minute_bcd_h = _read_bcd(&_tmp_buf);
+        minute_bcd_l = _read_bcd(&_tmp_buf);
+        second_bcd_h = _read_bcd(&_tmp_buf);
+        second_bcd_l = _read_bcd(&_tmp_buf);
+        for (uint8_t i=0; i<7; i++)
+        {
+            _goto_next_field(&_tmp_buf);
+        }
+        if (_goto_next_field(&_tmp_buf))
+        {
+            return;
+        }
+        date_bcd_h = _read_bcd(&_tmp_buf);
+        date_bcd_l = _read_bcd(&_tmp_buf);
+        month_bcd_h = _read_bcd(&_tmp_buf);
+        month_bcd_l = _read_bcd(&_tmp_buf);
+        year = _read_bcd(&_tmp_buf) * 10;
+        year += _read_bcd(&_tmp_buf);
+
+        if (hour_bcd_h > 9 || hour_bcd_l > 9 ||
+            minute_bcd_h > 9 || minute_bcd_l > 9 ||
+            second_bcd_h > 9 || second_bcd_l > 9 ||
+            date_bcd_h > 9 || date_bcd_l > 9 ||
+            month_bcd_h > 9 || month_bcd_l > 9)
+        {
+            return;
+        }
+        uart_send_byte('|');
+        uart_send_byte('0' + hour_bcd_h);
+        uart_send_byte('0' + hour_bcd_l);
+        uart_send_byte(':');
+        uart_send_byte('0' + minute_bcd_h);
+        uart_send_byte('0' + minute_bcd_l);
+        uart_send_byte(':');
+        uart_send_byte('0' + second_bcd_h);
+        uart_send_byte('0' + second_bcd_l);
+        uart_send_byte(' ');
+        uart_send_byte('0' + date_bcd_h);
+        uart_send_byte('0' + date_bcd_l);
+        uart_send_byte('.');
+        uart_send_byte('0' + month_bcd_h);
+        uart_send_byte('0' + month_bcd_l);
+        uart_send_byte('.');
+        uart_send_byte('0' + year / 10);
+        uart_send_byte('0' + year % 10);
+        uart_send_byte('|');
+
+        _correct_time_zone();
+        if (_time_cb != NULL)
+        {
+            _time_cb();
+        }
+    }
+}
+
 void neo7m_init(time_cb cb)
 {
     _time_cb = cb;
@@ -227,7 +297,7 @@ void neo7m_handler(void)
     while (uart_check_receiver())
     {
         uint8_t tmp = uart_get_byte();
-        uart_send_byte(tmp);
+        // uart_send_byte(tmp);
         // uart_send_hex(tmp);
         if (tmp == START_CODE)
         {
@@ -298,4 +368,9 @@ uint8_t get_date_bcd_h(void)
 uint8_t get_month(void)
 {
     return month_bcd_h * 10 + month_bcd_l;
+}
+
+uint8_t get_year(void)
+{
+    return year;
 }

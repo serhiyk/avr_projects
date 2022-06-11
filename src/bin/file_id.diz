@@ -1,0 +1,23 @@
+AVREAL V1.29rev1
+
+LPT & USB ISP programmer for
+Atmel AVR controllers.
+
+WIN32, Linux32/Linux64, FreeBSD
+versions available
+
+Support "FBPRG" cable,
+Altera ByteBlaster,
+XILINX cable and
+STK200/STK300 adapters
+and almost any other
+by "mapped adapter" switch
+
+FT2232C,FT232L,FT232D,
+FT2232H, FT4232H, FT232H support
+for WIN32 and Linux
+
+detailed information:
+http://real.kyiv.ua/avreal
+
+avreal@real.kiev.ua

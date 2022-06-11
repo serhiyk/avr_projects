@@ -24,9 +24,10 @@ void uart_init(void)
 {
     PORTD |= 0x02;
 
-    UBRR0H = (uint8_t) (((F_CPU / (16UL * BAUDRATE)) - 1) >> 8);  // set baud rate
-    UBRR0L = (uint8_t) ((F_CPU / (16UL * BAUDRATE)) - 1);
-    UCSR0B = (1 << RXCIE0) | (1 << RXEN0) | (1 << TXEN0);
+    UBRRH = (uint8_t) (((F_CPU / (8UL * BAUDRATE)) - 1) >> 8);  // set baud rate
+    UBRRL = (uint8_t) ((F_CPU / (8UL * BAUDRATE)) - 1);
+    UCSRA |= (1 << U2X);
+    UCSRB = (1 << RXCIE) | (1 << RXEN) | (1 << TXEN);
 
     UART_RxTail = 0;    //Set UART Buffer
     UART_RxHead = 0;
@@ -36,8 +37,8 @@ void uart_init(void)
 
 void uart_update_baudrate(uint32_t baudrate)
 {
-    UBRR0H = (uint8_t) (((F_CPU / (16UL * baudrate)) - 1) >> 8);  // set baud rate
-    UBRR0L = (uint8_t) ((F_CPU / (16UL * baudrate)) - 1);
+    UBRRH = (uint8_t) (((F_CPU / (8UL * baudrate)) - 1) >> 8);  // set baud rate
+    UBRRL = (uint8_t) ((F_CPU / (8UL * baudrate)) - 1);
 }
 
 uint8_t uart_check_receiver(void)
@@ -53,7 +54,7 @@ void uart_send_byte(uint8_t data) //UART Transmit Byte
     while(tmphead == UART_TxTail);
     UART_TxBuf[tmphead] = data;
     UART_TxHead = tmphead;
-    UCSR0B |= (1 << UDRIE0);    //Enable Interrupt UART Data Register Empty
+    UCSRB |= (1 << UDRIE);    //Enable Interrupt UART Data Register Empty
 }
 
 uint8_t uart_get_byte(void)   //UART Receive Byte
@@ -69,12 +70,12 @@ uint8_t uart_get_byte(void)   //UART Receive Byte
     return UART_RxBuf[tmptail];
 }
 
-SIGNAL(USART_RX_vect)   //Interrupt UART Receive Byte
+SIGNAL(USART_RXC_vect)   //Interrupt UART Receive Byte
 {
     uint8_t tmphead;
 
     tmphead = UART_RxHead + 1;
-    UART_RxBuf[tmphead] = UDR0;
+    UART_RxBuf[tmphead] = UDR;
     UART_RxHead = tmphead;
     UART_RxFlag = 1;
 }
@@ -88,11 +89,11 @@ SIGNAL(USART_UDRE_vect) //Interrupt UART Data Register Empty (Transmit Byte)
     {
         tmptail = UART_TxTail + 1;
         UART_TxTail = tmptail;
-        UDR0 = UART_TxBuf[tmptail];
+        UDR = UART_TxBuf[tmptail];
     }
     else    //If Transmit Buffer Free
     {
-        UCSR0B &= ~(1 << UDRIE0);   //Disable Interrupt UART Data Register Empty
+        UCSRB &= ~(1 << UDRIE);   //Disable Interrupt UART Data Register Empty
     }
 }
 
