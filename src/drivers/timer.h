@@ -9,5 +9,6 @@ uint8_t timer_register(uint8_t timer, uint8_t timeout, timer_cb callback);
 uint8_t timer_stop(uint8_t timer);
 uint8_t timer_start(uint8_t timer, uint8_t timeout);
 void timer_handler(void);
+uint32_t get_localtime_ds(void);
 
 #endif  /* TIMER_H */

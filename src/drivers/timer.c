@@ -15,6 +15,9 @@ typedef struct {
 
 static timer_descriptor_t timer_descriptor[TIMER_NUMBER];
 static volatile uint8_t timer_flag=0;
+#ifdef USE_LOCALTIME
+static volatile uint32_t localtime_ds;
+#endif
 
 void timer_init(void)
 {
@@ -32,6 +35,9 @@ void timer_init(void)
 SIGNAL(TIMER1_COMPA_vect)
 {
     timer_flag = 1;
+#ifdef USE_LOCALTIME
+    localtime_ds++;
+#endif
 }
 
 uint8_t timer_register(uint8_t timer, uint8_t timeout, timer_cb callback)
@@ -88,3 +94,10 @@ void timer_handler(void)
         }
     }
 }
+
+#ifdef USE_LOCALTIME
+uint32_t get_localtime_ds(void)
+{
+    return localtime_ds;
+}
+#endif
