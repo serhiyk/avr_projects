@@ -135,7 +135,7 @@ static void print_localtime(void)
     while (localtime1)
     {
         time_str[i++] = '0' + localtime1 % 10;
-        localtime /= 10;
+        localtime1 /= 10;
     }
     for (int j = 0; j < i / 2; j++)  // reverse
     {
