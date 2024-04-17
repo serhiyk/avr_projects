@@ -100,7 +100,7 @@ int8_t bme68x_init(void);
  * @retval 0 -> Success
  * @retval < 0 -> Fail
  */
-int8_t bme68x_set_regs(const uint8_t *reg_addr, const uint8_t *reg_data, uint8_t len);
+void bme68x_set_regs(const uint8_t *reg_addr, const uint8_t *reg_data, uint8_t len);
 
 /*!
  * \ingroup bme68xApiRegister
@@ -119,7 +119,7 @@ int8_t bme68x_set_regs(const uint8_t *reg_addr, const uint8_t *reg_data, uint8_t
  * @retval 0 -> Success
  * @retval < 0 -> Fail
  */
-int8_t bme68x_get_regs(uint8_t reg_addr, uint8_t *reg_data, uint8_t len);
+void bme68x_get_regs(uint8_t reg_addr, uint8_t *reg_data, uint8_t len);
 
 /**
  * \ingroup bme68x
@@ -141,7 +141,7 @@ int8_t bme68x_get_regs(uint8_t reg_addr, uint8_t *reg_data, uint8_t len);
  * @retval 0 -> Success
  * @retval < 0 -> Fail
  */
-int8_t bme68x_soft_reset(void);
+void bme68x_soft_reset(void);
 
 /**
  * \ingroup bme68x
@@ -163,7 +163,7 @@ int8_t bme68x_soft_reset(void);
  * @retval 0 -> Success
  * @retval < 0 -> Fail
  */
-int8_t bme68x_set_op_mode(const uint8_t op_mode);
+void bme68x_set_op_mode(const uint8_t op_mode);
 
 /*!
  * \ingroup bme68xApiOm
@@ -181,22 +181,6 @@ int8_t bme68x_set_op_mode(const uint8_t op_mode);
  * @retval < 0 -> Fail
  */
 uint8_t bme68x_get_op_mode(void);
-
-/*!
- * \ingroup bme68xApiConfig
- * \page bme68x_api_bme68x_get_meas_dur bme68x_get_meas_dur
- * \code
- * uint32_t bme68x_get_meas_dur(const uint8_t op_mode, struct bme68x_conf *conf, struct bme68x_dev *dev);
- * \endcode
- * @details This API is used to get the remaining duration that can be used for heating.
- *
- * @param[in] op_mode : Desired operation mode.
- * @param[in] conf    : Desired sensor configuration.
- * @param[in] dev     : Structure instance of bme68x_dev
- *
- * @return Measurement duration calculated in microseconds
- */
-uint32_t bme68x_get_meas_dur(const uint8_t op_mode);
 
 /**
  * \ingroup bme68x
@@ -223,7 +207,8 @@ uint32_t bme68x_get_meas_dur(const uint8_t op_mode);
  * @retval 0 -> Success
  * @retval < 0 -> Fail
  */
-int8_t bme68x_get_data(uint8_t op_mode, struct bme68x_data *data, uint8_t *n_data);
+void bme68x_get_data(void);
+void bme68x_get_data_1(void);
 
 /**
  * \ingroup bme68x
@@ -246,25 +231,7 @@ int8_t bme68x_get_data(uint8_t op_mode, struct bme68x_data *data, uint8_t *n_dat
  * @retval 0 -> Success
  * @retval < 0 -> Fail
  */
-int8_t bme68x_set_conf(void);
-
-/*!
- * \ingroup bme68xApiConfig
- * \page bme68x_api_bme68x_get_conf bme68x_get_conf
- * \code
- * int8_t bme68x_get_conf(struct bme68x_conf *conf, struct bme68x_dev *dev);
- * \endcode
- * @details This API is used to get the oversampling, filter and odr
- * configuration
- *
- * @param[out] conf   : Present sensor configuration.
- * @param[in,out] dev : Structure instance of bme68x_dev.
- *
- * @return Result of API execution status
- * @retval 0 -> Success
- * @retval < 0 -> Fail
- */
-int8_t bme68x_get_conf(struct bme68x_conf *conf);
+void bme68x_set_conf(void);
 
 /*!
  * \ingroup bme68xApiConfig
@@ -282,24 +249,7 @@ int8_t bme68x_get_conf(struct bme68x_conf *conf);
  * @retval 0 -> Success
  * @retval < 0 -> Fail
  */
-int8_t bme68x_set_heatr_conf(uint8_t op_mode);
-
-/*!
- * \ingroup bme68xApiConfig
- * \page bme68x_api_bme68x_get_heatr_conf bme68x_get_heatr_conf
- * \code
- * int8_t bme68x_get_heatr_conf(const struct bme68x_heatr_conf *conf, struct bme68x_dev *dev);
- * \endcode
- * @details This API is used to get the gas configuration of the sensor.
- *
- * @param[out] conf   : Current configurations of the gas sensor.
- * @param[in,out] dev : Structure instance of bme68x_dev.
- *
- * @return Result of API execution status
- * @retval 0 -> Success
- * @retval < 0 -> Fail
- */
-int8_t bme68x_get_heatr_conf(const struct bme68x_heatr_conf *conf);
+void bme68x_set_heatr_conf(void);
 
 #ifdef __cplusplus
 }
