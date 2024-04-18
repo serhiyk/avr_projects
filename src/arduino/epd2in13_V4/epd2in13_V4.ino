@@ -137,7 +137,7 @@ static void print_temperature(void)
     tmp_str[i++] = '0' + t % 10;
     tmp_str[i++] = 0;
 
-    epd.DisplayClearPartFrame(TEMPERATURE_X_SHIFT, 0, TEMPERATURE_X_SHIFT + font_digits->height, EPD_WIDTH, 0);
+    epd.DisplayClearPartFrame(TEMPERATURE_X_SHIFT, 0, TEMPERATURE_X_SHIFT + font_digits->height, EPD_HEIGHT, 0);
     uint16_t y = EPD_HEIGHT - str_width(font_digits, tmp_str);
     y /= 2;
     print_str(font_digits, TEMPERATURE_X_SHIFT, &y, tmp_str);
@@ -275,12 +275,9 @@ void loop()
         update_time();
         if (time_s == 0)
         {
+            bme.performReading();
             data_update_handler();
             print_log();
-        }
-        else if (time_s == 50)
-        {
-            bme.performReading();
         }
     }
     sleep_mode();
